@@ -205,30 +205,31 @@ function showOverlay(message, category) {
 }
 
 // ─── AI Analysis ─────────────────────────────────────────────────────────────
-const BRAIN_PROMPT = `You are Covexy, a macOS screen-watching AI. Analyze the screen description and decide if the user needs a nudge.
+const BRAIN_PROMPT = `You are Covexy, a friendly macOS screen-watching assistant. Look at what's on screen and share ONE short, useful observation or tip.
 
 Screen: "{CONTEXT}"
 
-ONLY respond with a suggestion when you spot one of these SPECIFIC situations:
-- An unanswered email or message clearly visible on screen
-- Multiple browser tabs open exploring the same topic (research sprawl)
-- A terminal or code error / warning message on screen
-- A document or form with obviously incomplete required sections
-- A meeting, calendar event, or deadline visible that needs action
-- A clearly stalled task: blank doc, empty form, cursor blinking with nothing typed
+Be generous — respond whenever you see anything interesting, including:
+- Any app, document, code, or task the user is working on
+- Browser tabs or web content worth noting
+- Emails, messages, or notifications
+- Errors, warnings, or terminal output
+- A deadline, calendar event, or meeting
+- Anything worth a friendly nudge or reminder
 
-If NONE of these clearly apply → respond with exactly: SKIP
+Only respond SKIP if the screen is completely blank, just a desktop with nothing open, or a screensaver/lock screen.
 
-If action IS needed, respond ONLY in this format (one line):
-CATEGORY|Short actionable suggestion in 8–15 words
+Respond on ONE line in this exact format:
+CATEGORY|Your observation or tip in 10–18 words
 
-Where CATEGORY is one of: EMAIL | TABS | ERROR | TASK | DEADLINE | FOCUS
+CATEGORY must be one of: EMAIL | TABS | ERROR | TASK | DEADLINE | FOCUS | TIP
 
 Good examples:
-EMAIL|Reply to Sarah about the Q4 report – she's waiting on you
-TABS|You have 8 tabs on TypeScript generics – save them and close?
-ERROR|Python ModuleNotFoundError in terminal – run pip install to fix
-TASK|Checkout form is half-filled – complete the shipping address
+TIP|Looks like you have been coding for a while — remember to take a break
+FOCUS|Deep in that document — consider saving a draft before switching tabs
+EMAIL|Gmail is open with unread messages — worth a quick check
+ERROR|Terminal output has a red error — might be worth investigating
+TABS|Several browser tabs open — could be a good time to close finished ones
 SKIP`
 
 async function analyzeScreen() {
@@ -236,54 +237,68 @@ async function analyzeScreen() {
   isProcessing = true
 
   try {
+    // ── Step 1: Screenshot ───────────────────────────────────────────────────
     const imgPath = path.join(app.getPath('temp'), 'covexy_screen.png')
     await screenshot({ filename: imgPath })
     const imageData = fs.readFileSync(imgPath, { encoding: 'base64' })
+    console.log('[Covexy] 📸 Screenshot taken')
 
-    // Step 1: Vision — describe the screen precisely
+    // ── Step 2: Vision (moondream) ───────────────────────────────────────────
+    console.log('[Covexy] 👁  Sending to moondream...')
     const visionRes = await axios.post('http://localhost:11434/api/generate', {
       model: 'moondream',
-      prompt: 'List every visible app, window, and key text on screen. Include: app names, email subjects, error messages, tab titles, document names, any visible deadlines or names.',
+      prompt: 'Describe everything visible on screen: app names, window titles, any text, email subjects, tab titles, error messages, document names.',
       images: [imageData],
       stream: false
-    }, { timeout: 30000 })
+    }, { timeout: 45000 })
 
-    const screenContext = visionRes.data.response?.trim()
-    if (!screenContext) { isProcessing = false; return }
-    console.log('[Covexy] Screen:', screenContext)
+    const screenContext = (visionRes.data.response || '').trim()
+    console.log('[Covexy] 🖥  Screen seen:', screenContext || '(empty — moondream returned nothing)')
 
-    // Step 2: Brain — decide if action is genuinely needed
+    if (!screenContext) {
+      console.log('[Covexy] ⚠️  Moondream gave an empty response — skipping brain call')
+      isProcessing = false
+      return
+    }
+
+    // ── Step 3: Brain (qwen2.5:3b) ───────────────────────────────────────────
+    console.log('[Covexy] 🧠 Sending to qwen2.5:3b...')
     const brainRes = await axios.post('http://localhost:11434/api/generate', {
       model: 'qwen2.5:3b',
       prompt: BRAIN_PROMPT.replace('{CONTEXT}', screenContext),
       stream: false
-    }, { timeout: 30000 })
+    }, { timeout: 45000 })
 
-    const raw = brainRes.data.response?.trim()
-    console.log('[Covexy] Brain:', raw)
+    const raw = (brainRes.data.response || '').trim()
+    console.log('[Covexy] 💬 Brain says:', raw || '(empty response)')
 
-    if (!raw || raw === 'SKIP' || raw.startsWith('SKIP')) {
-      console.log('[Covexy] No action needed — skipping')
-      isProcessing = false; return
+    if (!raw || raw === 'SKIP' || raw.toUpperCase().startsWith('SKIP')) {
+      console.log('[Covexy] ⏭  Skipping — nothing interesting this scan')
+      isProcessing = false
+      return
     }
 
-    // Parse CATEGORY|suggestion
+    // ── Step 4: Parse and show ────────────────────────────────────────────────
     const pipe = raw.indexOf('|')
-    let category = null, suggestion = raw
+    let category = null
+    let suggestion = raw
     if (pipe > -1) {
       category = raw.slice(0, pipe).trim().toLowerCase()
       suggestion = raw.slice(pipe + 1).trim()
     }
 
-    if (!suggestion || suggestion.length < 5 || suggestion.startsWith('SKIP')) {
-      isProcessing = false; return
+    if (!suggestion || suggestion.length < 5) {
+      console.log('[Covexy] ⏭  Parsed suggestion too short — skipping')
+      isProcessing = false
+      return
     }
 
+    console.log(`[Covexy] ✅ Showing overlay — [${category || 'general'}] ${suggestion}`)
     addToHistory(suggestion, category)
     showOverlay(suggestion, category)
 
   } catch (err) {
-    console.log('[Covexy] Error:', err.message)
+    console.log('[Covexy] ❌ Error during analysis:', err.message)
   }
 
   isProcessing = false
@@ -319,10 +334,10 @@ app.whenReady().then(() => {
   loadHistory()
   createOverlayWindow()
   createTray()
-  console.log('[Covexy] Running in menu bar. First scan in 15s...')
+  console.log('[Covexy] Running in menu bar. First scan in 15s, then every 3 minutes.')
   setTimeout(() => {
     analyzeScreen()
-    setInterval(analyzeScreen, 60000)
+    setInterval(analyzeScreen, 180000)
   }, 15000)
 })
 
