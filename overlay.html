@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    background: transparent;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+    -webkit-app-region: drag;
+    user-select: none;
+  }
+
+  .container {
+    background: rgba(30, 30, 30, 0.75);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 18px;
+    padding: 16px 20px;
+    margin: 10px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    background: #30d158;
+    border-radius: 50%;
+    margin-right: 8px;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .brand {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.5);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .message {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.92);
+    line-height: 1.4;
+    margin-bottom: 14px;
+    font-weight: 400;
+  }
+
+  .actions {
+    display: flex;
+    gap: 8px;
+    -webkit-app-region: no-drag;
+  }
+
+  button {
+    flex: 1;
+    padding: 6px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 12px;
+    font-family: -apple-system, sans-serif;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  button:hover {
+    background: rgba(255, 255, 255, 0.16);
+    color: white;
+  }
+
+  button.primary {
+    background: rgba(48, 209, 88, 0.25);
+    border-color: rgba(48, 209, 88, 0.4);
+    color: #30d158;
+  }
+
+  button.primary:hover {
+    background: rgba(48, 209, 88, 0.35);
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="dot"></div>
+    <span class="brand">Covexy</span>
+  </div>
+  <div class="message" id="message">Analyzing your screen...</div>
+  <div class="actions">
+    <button onclick="sendAction('done')">Done</button>
+    <button onclick="sendAction('later')">Later</button>
+    <button class="primary" onclick="sendAction('help')">Help me with this</button>
+  </div>
+</div>
+<script src="overlay.js"></script>
+</body>
+</html>
