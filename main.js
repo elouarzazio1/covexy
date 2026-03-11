@@ -256,7 +256,7 @@ async function analyzeScreen() {
     // ── Step 2: Vision (moondream) ───────────────────────────────────────────
     console.log('[Covexy] 👁  Sending to moondream...')
     const visionRes = await axios.post('http://localhost:11434/api/generate', {
-      model: 'moondream',
+      model: 'llava:7b',
       prompt: 'What is on this screen?',
       images: [imageData],
       stream: false
