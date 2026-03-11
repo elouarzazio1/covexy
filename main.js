@@ -240,19 +240,33 @@ async function analyzeScreen() {
     // ── Step 1: Screenshot ───────────────────────────────────────────────────
     const imgPath = path.join(app.getPath('temp'), 'covexy_screen.png')
     await screenshot({ filename: imgPath })
-    const imageData = fs.readFileSync(imgPath, { encoding: 'base64' })
-    console.log('[Covexy] 📸 Screenshot taken')
+
+    // Confirm the file landed and has real content
+    const fileSize = fs.existsSync(imgPath) ? fs.statSync(imgPath).size : 0
+    console.log(`[Covexy] 📸 Screenshot saved — ${(fileSize / 1024).toFixed(1)} KB at ${imgPath}`)
+    if (fileSize < 1024) {
+      console.log('[Covexy] ⚠️  Screenshot too small — likely blank/black (check Screen Recording permission in System Settings)')
+      isProcessing = false
+      return
+    }
+
+    // Read as base64 — Ollama images[] only accepts base64 strings, not file paths
+    const imageData = fs.readFileSync(imgPath).toString('base64')
 
     // ── Step 2: Vision (moondream) ───────────────────────────────────────────
     console.log('[Covexy] 👁  Sending to moondream...')
     const visionRes = await axios.post('http://localhost:11434/api/generate', {
       model: 'moondream',
-      prompt: 'Describe everything visible on screen: app names, window titles, any text, email subjects, tab titles, error messages, document names.',
+      prompt: 'What is on this screen?',
       images: [imageData],
       stream: false
-    }, { timeout: 45000 })
+    }, { timeout: 60000 })
 
-    const screenContext = (visionRes.data.response || '').trim()
+    // visionRes.data may be a parsed object or a raw string depending on Ollama version
+    const visionData = typeof visionRes.data === 'string'
+      ? JSON.parse(visionRes.data.trim().split('\n').pop())
+      : visionRes.data
+    const screenContext = (visionData.response || '').trim()
     console.log('[Covexy] 🖥  Screen seen:', screenContext || '(empty — moondream returned nothing)')
 
     if (!screenContext) {
