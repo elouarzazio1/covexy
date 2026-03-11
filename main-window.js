@@ -1,39 +1,37 @@
 // ── State ─────────────────────────────────────────────────────────────────────
-let history = []
-let currentTab = 'insights'
-let msgCounter = 0
+let insights        = []
+let memoryData      = []
+let currentTab      = 'insights'
+let msgCounter      = 0
+let isChatLoading   = false
+let currentSettings = {}
 
 // ── Category config ───────────────────────────────────────────────────────────
 const CAT = {
   email:    { icon: '✉', cls: 'email'    },
-  tabs:     { icon: '⊞', cls: 'tabs'     },
-  error:    { icon: '⚠', cls: 'error'    },
   task:     { icon: '✓', cls: 'task'     },
-  deadline: { icon: '◷', cls: 'deadline' },
+  research: { icon: '⊞', cls: 'research' },
+  idea:     { icon: '◈', cls: 'idea'     },
   focus:    { icon: '◉', cls: 'focus'    },
-  other:    { icon: '◈', cls: 'other'    },
+  alert:    { icon: '⚠', cls: 'alert'    },
+  writing:  { icon: '✍', cls: 'writing'  },
 }
 
-function catFor(item) {
-  if (item.category && CAT[item.category]) return CAT[item.category]
-  const t = (item.text || '').toLowerCase()
-  if (t.includes('email') || t.includes('reply') || t.includes('message')) return CAT.email
-  if (t.includes('tab') || t.includes('browser') || t.includes('bookmark')) return CAT.tabs
-  if (t.includes('error') || t.includes('warning') || t.includes('debug')) return CAT.error
-  if (t.includes('deadline') || t.includes('calendar') || t.includes('meeting')) return CAT.deadline
-  return CAT.task
+function catFor (item) {
+  const raw = (item.category || item.tags?.[0] || '').toLowerCase().trim()
+  return CAT[raw] || CAT.focus
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-function isToday(iso) {
+function isToday (iso) {
   return new Date(iso).toDateString() === new Date().toDateString()
 }
 
-function fmtTime(iso) {
+function fmtTime (iso) {
   return new Date(iso).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
 }
 
-function fmtDay(dateStr) {
+function fmtDay (dateStr) {
   const d = new Date(dateStr)
   if (d.toDateString() === new Date().toDateString()) return 'Today'
   const diff = Math.floor((Date.now() - d.getTime()) / 86400000)
@@ -41,24 +39,28 @@ function fmtDay(dateStr) {
   return d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
 }
 
-function esc(str) {
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+function esc (str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
 // ── Tab switching ─────────────────────────────────────────────────────────────
-function switchTab(tab) {
+function switchTab (tab) {
   currentTab = tab
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'))
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'))
   document.getElementById(`panel-${tab}`).classList.add('active')
   document.getElementById(`nav-${tab}`).classList.add('active')
+  if (tab === 'insights') renderInsights()
+  if (tab === 'memory')   renderMemory()
 }
 
 // ── Render insights ───────────────────────────────────────────────────────────
-function renderInsights() {
-  const today = history.filter(h => isToday(h.time))
-  const list = document.getElementById('insights-list')
-  const sub  = document.getElementById('insights-sub')
+function renderInsights () {
+  const today = insights.filter(h => isToday(h.timestamp))
+  const list  = document.getElementById('insights-list')
+  const sub   = document.getElementById('insights-sub')
   const badge = document.getElementById('insights-badge')
 
   if (today.length === 0) {
@@ -79,35 +81,42 @@ function renderInsights() {
 
   list.innerHTML = today.map(item => {
     const c = catFor(item)
+    const actionHtml = item.action
+      ? `<div class="insight-action">→ ${esc(item.action)}</div>`
+      : ''
     return `
       <div class="insight">
         <div class="insight-icon ${c.cls}">${c.icon}</div>
         <div class="insight-body">
-          <div class="insight-text">${esc(item.text)}</div>
-          <div class="insight-time">${fmtTime(item.time)}</div>
+          <div class="insight-text">${esc(item.content)}</div>
+          ${actionHtml}
+          <div class="insight-time">${fmtTime(item.timestamp)}</div>
         </div>
       </div>`
   }).join('')
 }
 
 // ── Render memory ─────────────────────────────────────────────────────────────
-function renderMemory() {
+function renderMemory () {
   const list = document.getElementById('memory-list')
+  const sub  = document.getElementById('memory-sub')
 
-  if (history.length === 0) {
+  if (memoryData.length === 0) {
+    sub.textContent = 'No memories yet'
     list.innerHTML = `
       <div class="empty">
         <div class="empty-icon">◇</div>
         <div class="empty-title">No memories yet</div>
-        <div class="empty-body">Insights from the past 7 days will appear here, grouped by day.</div>
+        <div class="empty-body">Insights and learnings from the past 7 days will appear here, grouped by day.</div>
       </div>`
     return
   }
 
-  // Group by day
+  sub.textContent = `${memoryData.length} entr${memoryData.length !== 1 ? 'ies' : 'y'}`
+
   const groups = {}
-  history.forEach(item => {
-    const key = new Date(item.time).toDateString()
+  memoryData.forEach(item => {
+    const key = new Date(item.timestamp).toDateString()
     if (!groups[key]) groups[key] = []
     groups[key].push(item)
   })
@@ -118,19 +127,18 @@ function renderMemory() {
       ${items.map(item => `
         <div class="memory-item">
           <div class="mem-dot"></div>
-          <div class="mem-text">${esc(item.text)}</div>
+          <div class="mem-text">${esc(item.content)}</div>
         </div>`).join('')}
-    </div>`
-  ).join('')
+    </div>`).join('')
 }
 
 // ── Chat ──────────────────────────────────────────────────────────────────────
-function autoResize(el) {
+function autoResize (el) {
   el.style.height = 'auto'
   el.style.height = Math.min(el.scrollHeight, 120) + 'px'
 }
 
-function handleKey(e) {
+function handleChatKey (e) {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault()
     sendChat()
@@ -139,12 +147,12 @@ function handleKey(e) {
   }
 }
 
-function addMsg(role, content, isTyping = false) {
-  const id = `msg-${++msgCounter}`
+function addMsg (role, content, isTyping = false) {
+  const id       = `msg-${++msgCounter}`
   const messages = document.getElementById('chat-messages')
-  const div = document.createElement('div')
-  div.className = `msg ${role}`
-  div.id = id
+  const div      = document.createElement('div')
+  div.className  = `msg ${role}`
+  div.id         = id
 
   const avatar = role === 'assistant' ? 'C' : 'U'
   const bubble = isTyping
@@ -160,45 +168,191 @@ function addMsg(role, content, isTyping = false) {
   return id
 }
 
-function removeMsg(id) {
+function removeMsg (id) {
   document.getElementById(id)?.remove()
 }
 
-async function sendChat() {
+function loadChatHistory (history) {
+  if (!history || history.length === 0) return
+  // Clear welcome message, restore real history
+  document.getElementById('chat-messages').innerHTML = ''
+  history.forEach(({ role, content }) => addMsg(role, content))
+}
+
+async function sendChat () {
   const input = document.getElementById('chat-input')
   const btn   = document.getElementById('send-btn')
   const text  = input.value.trim()
-  if (!text) return
+  if (!text || isChatLoading) return
 
   input.value = ''
   input.style.height = '40px'
-  btn.disabled = true
+  isChatLoading = true
+  btn.disabled  = true
 
   addMsg('user', text)
   const typingId = addMsg('assistant', '', true)
 
   try {
-    const reply = await window.electronAPI.sendChatMessage(text)
+    const result = await window.electronAPI.sendChat(text)
     removeMsg(typingId)
-    addMsg('assistant', reply)
+    if (result.ok) {
+      addMsg('assistant', result.reply)
+    } else {
+      addMsg('assistant', `Sorry, something went wrong: ${result.error || 'Unknown error'}`)
+    }
   } catch (e) {
     removeMsg(typingId)
-    addMsg('assistant', 'I had trouble connecting to the local AI model. Make sure Ollama is running.')
+    addMsg('assistant', 'Connection failed. Check your API key in Settings.')
   }
 
-  btn.disabled = false
+  isChatLoading = false
+  btn.disabled  = false
   document.getElementById('chat-messages').scrollTop = 99999
 }
 
-// ── Bootstrap ─────────────────────────────────────────────────────────────────
-window.electronAPI.onHistoryUpdate((newHistory) => {
-  history = newHistory
-  renderInsights()
-  renderMemory()
-})
+function quickAction (prompt) {
+  const input = document.getElementById('chat-input')
+  input.value = prompt
+  autoResize(input)
+  if (currentTab !== 'chat') switchTab('chat')
+  sendChat()
+}
 
-window.electronAPI.getHistory().then((h) => {
-  history = h || []
+// ── Settings ──────────────────────────────────────────────────────────────────
+function loadSettingsUI (s) {
+  if (!s) return
+  currentSettings = s
+
+  const intervalEl = document.getElementById('scan-interval')
+  const daysEl     = document.getElementById('memory-days')
+
+  if (intervalEl && s.scanInterval) {
+    const opt = intervalEl.querySelector(`option[value="${s.scanInterval}"]`)
+    if (opt) opt.selected = true
+  }
+  if (daysEl && s.memoryDays) {
+    const opt = daysEl.querySelector(`option[value="${s.memoryDays}"]`)
+    if (opt) opt.selected = true
+  }
+}
+
+async function saveSettings () {
+  const interval = parseInt(document.getElementById('scan-interval').value)
+  const days     = parseInt(document.getElementById('memory-days').value)
+
+  const btn = document.querySelector('.settings-save-btn')
+  btn.textContent = 'Saving…'
+  btn.disabled = true
+
+  await window.electronAPI.saveSettings({ scanInterval: interval, memoryDays: days })
+
+  btn.textContent = '✓ Saved'
+  setTimeout(() => { btn.textContent = 'Save Settings'; btn.disabled = false }, 1500)
+}
+
+async function reTestApiKey () {
+  const input  = document.getElementById('settings-api-key')
+  const btn    = document.getElementById('retest-btn')
+  const status = document.getElementById('retest-status')
+  const key    = input.value.trim()
+
+  if (!key) {
+    status.textContent = 'Enter an API key first'
+    status.className = 'settings-status err'
+    return
+  }
+
+  btn.disabled = true
+  btn.innerHTML = '<span class="spinner"></span>Testing…'
+  status.textContent = 'Connecting…'
+  status.className = 'settings-status loading'
+
+  const result = await window.electronAPI.reTestApiKey(key)
+
+  if (result.ok) {
+    status.textContent = '✓ Connected — key saved'
+    status.className = 'settings-status ok'
+    btn.textContent = '✓ OK'
+    setTimeout(() => { btn.textContent = 'Test'; btn.disabled = false }, 2500)
+  } else {
+    status.textContent = result.error ? `Error: ${result.error}` : 'Connection failed'
+    status.className = 'settings-status err'
+    btn.textContent = 'Test'
+    btn.disabled = false
+  }
+}
+
+let clearConfirmPending = false
+function clearMemoryConfirm () {
+  const btn = document.querySelector('.settings-btn.danger')
+
+  if (!clearConfirmPending) {
+    clearConfirmPending = true
+    btn.textContent = 'Tap again to confirm'
+    btn.style.opacity = '0.7'
+    setTimeout(() => {
+      if (clearConfirmPending) {
+        clearConfirmPending = false
+        btn.textContent = '🗑 Clear Memory'
+        btn.style.opacity = ''
+      }
+    }, 2500)
+  } else {
+    clearConfirmPending = false
+    btn.textContent = 'Clearing…'
+    window.electronAPI.clearMemory().then(() => {
+      memoryData = []
+      if (currentTab === 'memory') renderMemory()
+      btn.textContent = '✓ Cleared'
+      btn.style.opacity = ''
+      setTimeout(() => { btn.textContent = '🗑 Clear Memory' }, 1500)
+    })
+  }
+}
+
+// ── Bootstrap ─────────────────────────────────────────────────────────────────
+async function init () {
+  const [ins, mem, chat, s, v] = await Promise.all([
+    window.electronAPI.getInsights(),
+    window.electronAPI.getMemory(),
+    window.electronAPI.getChatHistory(),
+    window.electronAPI.getSettings(),
+    window.electronAPI.getVersion(),
+  ])
+
+  insights   = ins  || []
+  memoryData = mem  || []
+
   renderInsights()
   renderMemory()
-})
+  loadChatHistory(chat)
+  loadSettingsUI(s)
+
+  if (v) document.getElementById('settings-version').textContent = `Covexy v${v}`
+
+  // Live push subscriptions
+  window.electronAPI.onInsightsUpdate((d) => {
+    insights = d || []
+    if (currentTab === 'insights') {
+      renderInsights()
+    } else {
+      // Update badge silently
+      const today = insights.filter(h => isToday(h.timestamp))
+      const badge = document.getElementById('insights-badge')
+      if (today.length > 0) { badge.textContent = today.length; badge.style.display = 'flex' }
+      else badge.style.display = 'none'
+    }
+  })
+
+  window.electronAPI.onMemoryUpdate((d) => {
+    memoryData = d || []
+    if (currentTab === 'memory') renderMemory()
+  })
+
+  window.electronAPI.onSettingsUpdate((d) => {
+    loadSettingsUI(d)
+  })
+}
+
+init()

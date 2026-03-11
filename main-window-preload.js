@@ -1,9 +1,26 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  getHistory: () => ipcRenderer.invoke('get-history'),
-  onHistoryUpdate: (cb) => ipcRenderer.on('history-update', (_, data) => cb(data)),
-  sendChatMessage: (msg) => ipcRenderer.invoke('chat-message', msg),
-  closeWindow: () => ipcRenderer.send('close-main-window'),
-  minimizeWindow: () => ipcRenderer.send('minimize-main-window')
+  // ── One-time data fetch ──────────────────────────────────────
+  getInsights:    ()    => ipcRenderer.invoke('get-insights'),
+  getMemory:      ()    => ipcRenderer.invoke('get-memory'),
+  getChatHistory: ()    => ipcRenderer.invoke('get-chat-history'),
+  getSettings:    ()    => ipcRenderer.invoke('get-settings'),
+  getProfile:     ()    => ipcRenderer.invoke('get-profile'),
+  getVersion:     ()    => ipcRenderer.invoke('get-version'),
+
+  // ── Actions ─────────────────────────────────────────────────
+  sendChat:          (msg)  => ipcRenderer.invoke('send-chat', msg),
+  saveSettings:      (data) => ipcRenderer.invoke('save-settings', data),
+  reTestApiKey:      (key)  => ipcRenderer.invoke('re-test-api-key', key),
+  clearMemory:       ()     => ipcRenderer.invoke('clear-memory'),
+  openProfileEditor: ()     => ipcRenderer.send('open-profile-editor'),
+  closeWindow:       ()     => ipcRenderer.send('close-main-window'),
+  minimizeWindow:    ()     => ipcRenderer.send('minimize-main-window'),
+
+  // ── Push subscriptions ───────────────────────────────────────
+  onInsightsUpdate:  (cb) => ipcRenderer.on('insights-update',  (_, d) => cb(d)),
+  onMemoryUpdate:    (cb) => ipcRenderer.on('memory-update',    (_, d) => cb(d)),
+  onSettingsUpdate:  (cb) => ipcRenderer.on('settings-update',  (_, d) => cb(d)),
+  onProfileUpdate:   (cb) => ipcRenderer.on('profile-update',   (_, d) => cb(d)),
 })

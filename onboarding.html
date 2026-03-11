@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --green:#30d158;--green-dim:rgba(48,209,88,.14);--green-mid:rgba(48,209,88,.28);
+  --bg:rgba(14,14,18,.96);--surface:rgba(255,255,255,.05);--border:rgba(255,255,255,.08);
+  --border-lit:rgba(255,255,255,.14);--text:rgba(255,255,255,.92);--dim:rgba(255,255,255,.4);
+  --faint:rgba(255,255,255,.2);--red:rgba(255,69,58,.85);
+  --font:-apple-system,'SF Pro Display',BlinkMacSystemFont,sans-serif;
+}
+html,body{width:100%;height:100%;font-family:var(--font);background:transparent;-webkit-font-smoothing:antialiased;user-select:none;overflow:hidden}
+.app{
+  width:100%;height:100%;
+  background:var(--bg);
+  backdrop-filter:blur(60px) saturate(180%);-webkit-backdrop-filter:blur(60px) saturate(180%);
+  border-radius:16px;border:1px solid var(--border-lit);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  box-shadow:0 0 0 .5px rgba(0,0,0,.5),0 32px 80px rgba(0,0,0,.6);
+  position:relative;
+}
+/* drag region */
+.drag{position:absolute;top:0;left:0;right:0;height:40px;-webkit-app-region:drag}
+
+/* Brand */
+.brand{display:flex;align-items:center;gap:9px;margin-bottom:36px}
+.brand-dot{width:10px;height:10px;background:var(--green);border-radius:50%;box-shadow:0 0 10px rgba(48,209,88,.5);animation:breathe 2s ease-in-out infinite}
+@keyframes breathe{0%,100%{opacity:1;box-shadow:0 0 10px rgba(48,209,88,.5)}50%{opacity:.7;box-shadow:0 0 5px rgba(48,209,88,.25)}}
+.brand-name{font-size:17px;font-weight:700;color:var(--text);letter-spacing:.01em}
+
+/* Card */
+.card{width:460px;display:flex;flex-direction:column;align-items:center}
+.step-title{font-size:22px;font-weight:700;color:var(--text);letter-spacing:-.01em;margin-bottom:6px;text-align:center}
+.step-sub{font-size:13px;color:var(--dim);margin-bottom:28px;text-align:center;line-height:1.5;max-width:340px}
+
+/* Progress dots (profile steps) */
+.progress{display:flex;gap:7px;margin-bottom:32px}
+.progress-dot{width:6px;height:6px;border-radius:50%;background:var(--faint);transition:all .2s}
+.progress-dot.active{background:var(--green);box-shadow:0 0 6px rgba(48,209,88,.5)}
+.progress-dot.done{background:rgba(48,209,88,.4)}
+
+/* Inputs */
+input[type=text],input[type=password],textarea{
+  width:100%;background:var(--surface);border:1px solid var(--border-lit);border-radius:12px;
+  padding:12px 16px;color:var(--text);font-size:14px;font-family:var(--font);outline:none;
+  transition:border-color .15s;resize:none;-webkit-app-region:no-drag;user-select:text;
+}
+input[type=text]::placeholder,input[type=password]::placeholder,textarea::placeholder{color:var(--faint)}
+input[type=text]:focus,input[type=password]:focus,textarea:focus{border-color:rgba(48,209,88,.4)}
+textarea{min-height:88px;line-height:1.5}
+
+/* Password wrapper */
+.pw-wrap{position:relative;width:100%}
+.pw-wrap input{padding-right:44px}
+.pw-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--dim);font-size:14px;-webkit-app-region:no-drag}
+.pw-toggle:hover{color:var(--text)}
+
+/* Buttons */
+.btn{
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  padding:11px 20px;border-radius:11px;font-size:14px;font-weight:600;
+  font-family:var(--font);cursor:pointer;transition:all .13s;border:none;
+  -webkit-app-region:no-drag;
+}
+.btn-primary{background:var(--green);color:#000;width:100%}
+.btn-primary:hover{background:#3de069;transform:scale(1.01)}
+.btn-primary:active{transform:scale(.98)}
+.btn-primary:disabled{background:rgba(48,209,88,.3);color:rgba(0,0,0,.5);cursor:not-allowed;transform:none}
+.btn-secondary{background:var(--surface);border:1px solid var(--border-lit);color:var(--dim);padding:9px 18px}
+.btn-secondary:hover{color:var(--text);background:rgba(255,255,255,.09)}
+.btn-row{display:flex;gap:10px;width:100%;margin-top:10px}
+.btn-row .btn-primary{flex:1}
+
+/* Test connection status */
+.test-status{font-size:12px;margin-top:10px;min-height:18px;text-align:center;transition:all .2s}
+.test-status.ok{color:var(--green)}
+.test-status.err{color:var(--red)}
+.test-status.loading{color:var(--dim)}
+
+/* Communication style buttons */
+.style-options{display:flex;flex-direction:column;gap:9px;width:100%}
+.style-btn{
+  padding:13px 18px;border-radius:11px;border:1px solid var(--border-lit);
+  background:var(--surface);color:var(--dim);font-size:13px;font-weight:500;
+  cursor:pointer;transition:all .15s;text-align:left;font-family:var(--font);
+  -webkit-app-region:no-drag;
+}
+.style-btn:hover{border-color:rgba(48,209,88,.3);color:var(--text)}
+.style-btn.selected{background:var(--green-dim);border-color:rgba(48,209,88,.4);color:var(--green)}
+.style-label{font-weight:600;display:block;margin-bottom:2px}
+.style-desc{font-size:11px;opacity:.7}
+
+/* Spinner */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{width:14px;height:14px;border:2px solid rgba(0,0,0,.3);border-top-color:#000;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+
+/* Step fade */
+.step{display:none;flex-direction:column;align-items:center;width:100%;animation:fadeIn .22s ease}
+.step.active{display:flex}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="drag"></div>
+
+  <div class="brand">
+    <div class="brand-dot"></div>
+    <span class="brand-name">Covexy</span>
+  </div>
+
+  <div class="card">
+
+    <!-- Step 1: API Key -->
+    <div class="step active" id="step-api">
+      <div class="step-title">Connect your AI</div>
+      <div class="step-sub">Covexy runs on OpenRouter. Paste your API key below — it's stored securely on your Mac and never leaves your device.</div>
+      <div class="pw-wrap" style="margin-bottom:10px">
+        <input type="password" id="api-input" placeholder="sk-or-v1-..." autocomplete="off" oninput="onApiInput()">
+        <button class="pw-toggle" onclick="togglePw()">👁</button>
+      </div>
+      <div class="test-status" id="test-status"></div>
+      <div class="btn-row" style="margin-top:14px">
+        <button class="btn btn-primary" id="test-btn" onclick="doTest()" disabled>Test connection</button>
+      </div>
+    </div>
+
+    <!-- Steps 2-6: Profile -->
+    <div class="step" id="step-profile">
+      <div class="progress" id="progress-dots"></div>
+      <div class="step-title" id="profile-title"></div>
+      <div class="step-sub"   id="profile-sub"></div>
+      <div id="profile-input-area" style="width:100%"></div>
+      <div class="btn-row" style="margin-top:18px">
+        <button class="btn btn-secondary" id="back-btn" onclick="profileBack()">Back</button>
+        <button class="btn btn-primary"   id="next-btn" onclick="profileNext()">Next</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+<script src="onboarding.js"></script>
+</body>
+</html>

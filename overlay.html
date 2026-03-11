@@ -13,7 +13,7 @@
   }
 
   .container {
-    background: rgba(22, 22, 26, 0.82);
+    background: rgba(22, 22, 26, 0.88);
     backdrop-filter: blur(48px) saturate(200%);
     -webkit-backdrop-filter: blur(48px) saturate(200%);
     border: 1px solid rgba(255, 255, 255, 0.12);
@@ -22,12 +22,12 @@
     margin: 10px;
     box-shadow:
       0 0 0 0.5px rgba(0, 0, 0, 0.4),
-      0 12px 40px rgba(0, 0, 0, 0.5);
-    animation: slideDown 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+      0 12px 40px rgba(0, 0, 0, 0.55);
+    animation: slideUp 0.24s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  @keyframes slideDown {
-    from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(10px) scale(0.97); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
   }
 
@@ -39,8 +39,7 @@
   }
 
   .dot {
-    width: 7px;
-    height: 7px;
+    width: 7px; height: 7px;
     background: #30d158;
     border-radius: 50%;
     flex-shrink: 0;
@@ -72,19 +71,27 @@
     display: none;
   }
 
-  .category-badge.email  { background: rgba(0,122,255,0.2);    color: #5ac8fa; }
-  .category-badge.tabs   { background: rgba(255,159,10,0.2);   color: #ffd60a; }
-  .category-badge.error  { background: rgba(255,69,58,0.2);    color: #ff6961; }
-  .category-badge.task   { background: rgba(48,209,88,0.15);   color: #30d158; }
-  .category-badge.deadline { background: rgba(191,90,242,0.2); color: #bf5af2; }
-  .category-badge.focus  { background: rgba(255,214,10,0.15);  color: #ffd60a; }
+  .category-badge.email    { background: rgba(0,122,255,0.2);    color: #5ac8fa; }
+  .category-badge.task     { background: rgba(48,209,88,0.15);   color: #30d158; }
+  .category-badge.research { background: rgba(255,159,10,0.2);   color: #ff9f0a; }
+  .category-badge.idea     { background: rgba(191,90,242,0.2);   color: #bf5af2; }
+  .category-badge.focus    { background: rgba(255,214,10,0.15);  color: #ffd60a; }
+  .category-badge.alert    { background: rgba(255,69,58,0.2);    color: #ff453a; }
+  .category-badge.writing  { background: rgba(90,200,250,0.15);  color: #5ac8fa; }
 
   .message {
     font-size: 13px;
     color: rgba(255, 255, 255, 0.90);
     line-height: 1.45;
-    margin-bottom: 13px;
+    margin-bottom: 7px;
     font-weight: 400;
+  }
+
+  .action-hint {
+    font-size: 11px;
+    color: rgba(48, 209, 88, 0.85);
+    margin-bottom: 11px;
+    display: none;
   }
 
   .actions {
@@ -137,11 +144,12 @@
     <span class="brand">Covexy</span>
     <span class="category-badge" id="badge"></span>
   </div>
-  <div class="message" id="message">Analyzing your screen...</div>
+  <div class="message" id="message">Analyzing your screen…</div>
+  <div class="action-hint" id="action-hint"></div>
   <div class="actions">
     <button onclick="sendAction('dismiss')">Dismiss</button>
     <button onclick="sendAction('later')">Later</button>
-    <button class="primary" onclick="sendAction('help')">Open Covexy</button>
+    <button class="primary" onclick="sendAction('open-chat')">Open Covexy</button>
   </div>
 </div>
 <script src="overlay.js"></script>
