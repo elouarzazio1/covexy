@@ -260,7 +260,7 @@ async function analyzeScreen() {
       prompt: 'What is on this screen?',
       images: [imageData],
       stream: false
-    }, { timeout: 60000 })
+    }, { timeout: 120000 })
 
     // visionRes.data may be a parsed object or a raw string depending on Ollama version
     const visionData = typeof visionRes.data === 'string'
