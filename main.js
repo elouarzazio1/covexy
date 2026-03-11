@@ -217,40 +217,46 @@ async function testApiKey (key) {
 }
 
 // ─── Proactive system prompt ──────────────────────────────────────────────────
-const PROACTIVE_SYSTEM = `You are Covexy, a silent AI guardian running on the user's Mac. Every 3 minutes you see a screenshot of their screen. Your job is to think carefully and surface one genuinely valuable insight, warning, or action that the user would thank you for — before they realized they needed it.
+const PROACTIVE_SYSTEM = `You are Covexy, a silent AI that runs on Othmane's Mac. Every 3 minutes you see a screenshot of his screen. You have one job: notice something genuinely useful that Othmane would thank you for surfacing.
 
-USER PROFILE:
+You are not a notification machine. You fire rarely and only when it matters. If you are not certain the insight is valuable, respond SKIP.
+
+WHO OTHMANE IS:
 {{PROFILE}}
 
-RECENT MEMORY (last 10 items):
+WHAT YOU HAVE NOTICED RECENTLY:
 {{MEMORY}}
 
-WHAT YOU ARE LOOKING FOR — trigger ONLY for these situations:
-- An email or message that appears unanswered and looks important
-- Multiple browser tabs or windows on the same topic, suggesting deep research the user might want help synthesizing
-- A document or article they appear to be reading — offer to summarize, translate, or pull key insights
-- A task, deadline, or to-do that appears unfinished or approaching
-- A YouTube video or article related to the user's stated priorities — offer a connection to their work
-- A repeated pattern across multiple screenshots (same app, same topic) — surface the pattern
-- A LinkedIn or social post being drafted — offer to improve it
-- An email being composed — offer to improve tone, clarity, or suggest what's missing
-- A web search that appears repeated or frustrated — offer a better angle or direct answer
-- Any content directly related to the user's stated current projects
+WHAT MAKES A GOOD INSIGHT — only trigger for these:
+- An email or message thread visible on screen that looks important and unanswered for more than a few hours
+- A document being edited that has an obvious gap, missing section, or weak argument Othmane might not have noticed
+- Multiple tabs or windows on the same topic suggesting deep research — offer to synthesize
+- Content directly related to mention.ma, Inference Watch, GEO, AI market intelligence, or Othmane's stated priorities — surface a connection or next step
+- A deadline, meeting, or task visible on screen that appears at risk
+- A repeated pattern across recent screenshots — same app, same stuck point — surface the pattern gently
+- Something Othmane was working on earlier today that appears abandoned — a gentle reminder if it seems important
 
-DO NOT trigger for:
-- Terminal windows, code editors, or developer tools
-- File manager, system preferences, or OS dialogs
-- Screensaver, lock screen, or blank screen
-- Content you cannot clearly identify
-- Anything related to topics the user said to ignore in their profile
-- The same suggestion you made in the last 30 minutes
+WHAT NEVER TRIGGERS A NOTIFICATION:
+- Terminal, code editors, developer tools, Claude Code
+- Any AI assistant interface (ChatGPT, Claude, Perplexity)
+- File manager, system preferences, OS dialogs
+- Screensaver, lock screen, blank screen, desktop
+- Active video playback or podcast listening (do not interrupt)
+- News browsing or casual reading (log it silently, do not interrupt)
+- Anything matching the user's ignore list: {{IGNORE_LIST}}
+- Any insight you already surfaced in the last 45 minutes
 
-If nothing on screen is worth a notification: respond with exactly the word SKIP and nothing else.
+QUALITY BAR:
+Before responding with an insight, ask yourself: would Othmane thank me for interrupting him with this right now? If the answer is not a clear yes, respond SKIP.
 
-If something is worth surfacing, respond in this exact format:
-CATEGORY: [one of: EMAIL / TASK / RESEARCH / IDEA / FOCUS / ALERT / WRITING]
-INSIGHT: [one sentence, maximum 20 words, specific and actionable, written directly to the user, never start with "I notice" or "It seems"]
-ACTION: [one optional follow-up action the user could take, maximum 10 words, or leave blank]`
+If nothing qualifies, respond:
+SKIP: [one sentence describing what you see on screen — this is logged privately, not shown to Othmane]
+
+Otherwise use this exact format:
+CATEGORY: [EMAIL / TASK / RESEARCH / IDEA / FOCUS / ALERT / WRITING]
+INSIGHT: [one sentence, max 20 words, direct, specific, no "I notice" or "It seems"]
+ACTION: [optional: one follow-up action, max 10 words]
+CONFIDENCE: [HIGH / MEDIUM] — only HIGH confidence insights are shown as notifications; MEDIUM is logged silently to memory for chat context`
 
 // ─── Chat system prompt ───────────────────────────────────────────────────────
 const CHAT_SYSTEM = `You are Covexy, the user's personal AI assistant. You are not a generic chatbot. You know this person, you have been watching their day, and you are here to help them work better, think clearer, and do more.
@@ -280,7 +286,47 @@ TONE AND STYLE:
 - When teaching or explaining, be clear and specific, use concrete examples
 - Always add value. Every response should give the user something they did not have before.
 
+WEB SEARCH CAPABILITY:
+When the user's message requires current information, live search results will be prepended as [Web context: ...]. Always prefer these searched facts over your training data assumptions. When you see web context, reference it directly and naturally.
+
 IMPORTANT: You have context about what the user has been doing today from the screen activity log. Use this naturally — refer to what they were reading, working on, or researching without making it feel creepy. Act like a colleague who was in the room.`
+
+// ─── Web search ───────────────────────────────────────────────────────────────
+async function webSearch (query) {
+  const res = await axios.get('https://api.duckduckgo.com/', {
+    params: { q: query, format: 'json', no_redirect: 1, no_html: 1 },
+    timeout: 8000
+  })
+  return res.data.AbstractText ||
+         res.data.RelatedTopics?.[0]?.Text ||
+         ''
+}
+
+const SEARCH_RE = /mention\.ma|inferencewatch|inference\s*watch|\bgeo\b|competitor|market\s*share|news|latest|recent|funding|launch|announc|valuation|startup|growth\s*rate|trend/i
+
+function shouldSearchForMessage (msg) {
+  return SEARCH_RE.test(msg)
+}
+
+async function enrichProfileContext () {
+  // Run once per install — skip if profile_context already in memory
+  if (memory.some(m => m.type === 'profile_context')) return
+  console.log('[Covexy] 🔍 Running profile enrichment searches...')
+  const queries = [
+    { q: 'mention.ma GEO AI referencing',            tag: 'mention_ma'    },
+    { q: 'inferencewatch.com AI inference tracking', tag: 'inferencewatch' },
+  ]
+  for (const { q, tag } of queries) {
+    try {
+      const result = await webSearch(q)
+      if (result && result.length > 30) {
+        addMemoryEntry({ type: 'profile_context', content: result.slice(0, 300), category: 'CONTEXT', tags: ['profile_context', tag] })
+        console.log(`[Covexy] 🔍 Enriched context: ${tag}`)
+      }
+    } catch { /* non-critical */ }
+    await new Promise(r => setTimeout(r, 700))
+  }
+}
 
 // ─── Proactive analysis ───────────────────────────────────────────────────────
 async function analyzeScreen () {
@@ -291,10 +337,11 @@ async function analyzeScreen () {
     const base64 = await captureScreen()
 
     const systemPrompt = PROACTIVE_SYSTEM
-      .replace('{{PROFILE}}', buildProfileText())
-      .replace('{{MEMORY}}',  getRecentMemory(10))
+      .replace('{{PROFILE}}',     buildProfileText())
+      .replace('{{MEMORY}}',      getRecentMemory(10))
+      .replace('{{IGNORE_LIST}}', profile?.ignore || 'nothing specified')
 
-    console.log('[Covexy] 👁  Sending to Gemini for analysis...')
+    console.log('[Covexy] 👁  Sending for analysis...')
 
     const raw = await aiChat([
       { role: 'system', content: systemPrompt },
@@ -307,45 +354,57 @@ async function analyzeScreen () {
       }
     ], 60000)
 
-    console.log('[Covexy] 💬 Response:', raw.slice(0, 120))
+    console.log('[Covexy] 💬 Response:', raw.slice(0, 150))
 
-    if (!raw || raw.trim().toUpperCase() === 'SKIP' || raw.trim().toUpperCase().startsWith('SKIP')) {
-      console.log('[Covexy] ⏭  Nothing to surface this scan')
-      addActivity('Screen scanned — nothing actionable found', false)
+    // SKIP — parse optional description for the activity log
+    if (!raw || /^SKIP/i.test(raw.trim())) {
+      const skipDesc = raw.replace(/^SKIP:?\s*/i, '').trim() || 'nothing noteworthy on screen'
+      console.log('[Covexy] ⏭  Skip:', skipDesc.slice(0, 80))
+      addActivity(skipDesc, false)
       isProcessing = false
       return
     }
 
     // Parse structured response
-    const catMatch     = raw.match(/CATEGORY:\s*(.+)/i)
-    const insightMatch = raw.match(/INSIGHT:\s*(.+)/i)
-    const actionMatch  = raw.match(/ACTION:\s*(.+)/i)
+    const catMatch    = raw.match(/CATEGORY:\s*(.+)/i)
+    const insMatch    = raw.match(/INSIGHT:\s*(.+)/i)
+    const actMatch    = raw.match(/ACTION:\s*(.+)/i)
+    const confMatch   = raw.match(/CONFIDENCE:\s*(HIGH|MEDIUM)/i)
 
-    const category = (catMatch?.[1] || 'FOCUS').trim().toUpperCase()
-    const insight  = insightMatch?.[1]?.trim()
-    const action   = actionMatch?.[1]?.trim() || ''
+    const category   = (catMatch?.[1] || 'FOCUS').trim().toUpperCase()
+    const insight    = insMatch?.[1]?.trim()
+    const action     = actMatch?.[1]?.trim() || ''
+    const confidence = (confMatch?.[1] || 'HIGH').trim().toUpperCase()
 
     if (!insight || insight.length < 5) {
-      console.log('[Covexy] ⏭  No parseable insight in response')
-      addActivity('Screen scanned — unparseable response', false)
+      console.log('[Covexy] ⏭  Unparseable response — logging')
+      addActivity('Screen scanned — unclear AI response', false)
       isProcessing = false
       return
     }
 
-    // 10-minute notification cooldown
-    if (Date.now() - lastNotifTime < 10 * 60 * 1000) {
-      console.log('[Covexy] ⏭  Cooldown active — skipping overlay')
-      isProcessing = false
-      return
-    }
-
-    console.log(`[Covexy] ✅ Insight [${category}]: ${insight}`)
-    lastNotifTime = Date.now()
-
-    addMemoryEntry({ type: 'proactive_insight', content: insight, category, tags: [category.toLowerCase()] })
-    addActivity(`${category}: ${insight}`, true)
-    showOverlay({ category, insight, action })
+    // Always log to memory and activity regardless of confidence
+    addMemoryEntry({ type: 'proactive_insight', content: insight, category, action, tags: [category.toLowerCase()], confidence })
+    addActivity(`${category}: ${insight}`, confidence === 'HIGH')
     push('insights-update', getInsights())
+
+    // MEDIUM — log silently, no toast
+    if (confidence === 'MEDIUM') {
+      console.log(`[Covexy] 💡 Medium confidence [${category}]: ${insight} — logged silently`)
+      isProcessing = false
+      return
+    }
+
+    // HIGH — enforce 45-minute cooldown between toasts
+    if (Date.now() - lastNotifTime < 45 * 60 * 1000) {
+      console.log('[Covexy] ⏭  Cooldown active — skipping toast')
+      isProcessing = false
+      return
+    }
+
+    console.log(`[Covexy] ✅ HIGH confidence [${category}]: ${insight}`)
+    lastNotifTime = Date.now()
+    showOverlay({ category, insight, action })
 
   } catch (err) {
     console.log('[Covexy] ❌ Scan error:', err.message)
@@ -357,6 +416,18 @@ async function analyzeScreen () {
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────
 async function sendChatMessage (userMessage) {
+  // Auto-search when the message is about current events / products
+  let contextPrefix = ''
+  if (shouldSearchForMessage(userMessage)) {
+    try {
+      const snippet = await webSearch(userMessage.slice(0, 120))
+      if (snippet && snippet.length > 30) {
+        contextPrefix = `[Web context: ${snippet.slice(0, 400)}]\n\n`
+        console.log('[Covexy] 🔍 Web context prepended to chat message')
+      }
+    } catch { /* non-critical — proceed without search */ }
+  }
+
   const systemPrompt = CHAT_SYSTEM
     .replace('{{PROFILE}}',        buildProfileText())
     .replace('{{TODAY_ACTIVITY}}', todayActivityText())
@@ -367,7 +438,7 @@ async function sendChatMessage (userMessage) {
   const messages = [
     { role: 'system', content: systemPrompt },
     ...historyMsgs,
-    { role: 'user', content: userMessage }
+    { role: 'user', content: contextPrefix + userMessage }
   ]
 
   const reply = await aiChat(messages, 30000)
@@ -449,6 +520,7 @@ function makeTrayIcon (size = 22) {
 
 // ─── Tray ─────────────────────────────────────────────────────────────────────
 function createTray () {
+  if (tray && !tray.isDestroyed()) { tray.destroy(); tray = null } // prevent duplicate on hot-reload
   const icon = nativeImage.createFromBuffer(makeTrayIcon(22), { scaleFactor: 1 })
   icon.setTemplateImage(true)
   tray = new Tray(icon)
@@ -471,24 +543,24 @@ function updateTrayMenu () {
 // ─── Overlay window ───────────────────────────────────────────────────────────
 function createOverlayWindow () {
   overlayWindow = new BrowserWindow({
-    width: 440, height: 160, frame: false, transparent: true,
+    width: 300, height: 150, frame: false, transparent: true,
     alwaysOnTop: true, skipTaskbar: true, resizable: false,
     focusable: false, hasShadow: false,
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true }
   })
-  // Position: bottom-right corner
-  const { screen } = require('electron')
-  const { width, height } = screen.getPrimaryDisplay().workAreaSize
-  overlayWindow.setPosition(width - 460, height - 180)
   overlayWindow.loadFile('overlay.html')
   overlayWindow.hide()
 }
 
 function showOverlay ({ category, insight, action }) {
   if (!overlayWindow || overlayWindow.isDestroyed()) return
+  // Position top-right, 16px from each edge — re-evaluated each show in case resolution changed
+  const { screen } = require('electron')
+  const { width } = screen.getPrimaryDisplay().workAreaSize
+  overlayWindow.setPosition(width - 316, 16)
   overlayWindow.webContents.send('show-suggestion', { category, insight, action })
   overlayWindow.show()
-  setTimeout(() => { if (overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.hide() }, 12000)
+  // Auto-dismiss is handled entirely by overlay.js countdown timer
 }
 
 // ─── Onboarding window ────────────────────────────────────────────────────────
@@ -542,7 +614,23 @@ function pushAllData () {
 // ─── IPC ─────────────────────────────────────────────────────────────────────
 ipcMain.on('overlay-action', (_, action) => {
   if (overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.hide()
-  if (action === 'open-chat') showMainWindow()
+})
+
+ipcMain.on('overlay-feedback', (_, { type, insight }) => {
+  if (overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.hide()
+  if (type === 'thumbs-up') {
+    addMemoryEntry({ type: 'feedback_positive', content: `Helpful: ${insight}`, category: 'FEEDBACK', tags: ['feedback', 'positive'] })
+    console.log('[Covexy] 👍 Positive feedback saved')
+  } else {
+    addMemoryEntry({ type: 'feedback_negative', content: `Not useful — avoid repeating: ${insight}`, category: 'FEEDBACK', tags: ['feedback', 'negative'] })
+    console.log('[Covexy] 👎 Negative feedback saved')
+  }
+})
+
+ipcMain.on('overlay-open-chat', (_, { insight }) => {
+  if (overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.hide()
+  showMainWindow()
+  setTimeout(() => push('show-chat-context', insight), 350)
 })
 
 ipcMain.on('close-main-window',    () => mainWindow?.hide())
@@ -635,6 +723,7 @@ app.whenReady().then(() => {
     console.log('[Covexy] ✅ Ready — showing main window, starting scanner')
     showMainWindow()
     startScanner()
+    setTimeout(() => enrichProfileContext(), 6000) // enrich after UI settles
   }
 })
 

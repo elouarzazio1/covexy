@@ -3,62 +3,40 @@
 <head>
 <meta charset="UTF-8">
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
-  body {
+  html, body {
     background: transparent;
     font-family: -apple-system, 'SF Pro Text', BlinkMacSystemFont, sans-serif;
-    -webkit-app-region: drag;
+    -webkit-font-smoothing: antialiased;
     user-select: none;
+    overflow: hidden;
+    width: 300px;
   }
 
   .container {
-    background: rgba(22, 22, 26, 0.88);
-    backdrop-filter: blur(48px) saturate(200%);
-    -webkit-backdrop-filter: blur(48px) saturate(200%);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 18px;
-    padding: 14px 18px 16px;
-    margin: 10px;
-    box-shadow:
-      0 0 0 0.5px rgba(0, 0, 0, 0.4),
-      0 12px 40px rgba(0, 0, 0, 0.55);
-    animation: slideUp 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+    width: 300px;
+    background: rgba(26, 26, 26, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    overflow: hidden;
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+    -webkit-app-region: drag;
   }
 
-  @keyframes slideUp {
-    from { opacity: 0; transform: translateY(10px) scale(0.97); }
-    to   { opacity: 1; transform: translateY(0) scale(1); }
+  .inner {
+    padding: 13px 15px 11px;
   }
 
+  /* ── Top row ─── */
   .header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 9px;
-  }
-
-  .dot {
-    width: 7px; height: 7px;
-    background: #30d158;
-    border-radius: 50%;
-    flex-shrink: 0;
-    animation: pulse 2s infinite;
-    box-shadow: 0 0 6px rgba(48, 209, 88, 0.5);
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.55; }
-  }
-
-  .brand {
-    font-size: 10px;
-    font-weight: 700;
-    color: rgba(255, 255, 255, 0.4);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    flex: 1;
+    justify-content: space-between;
+    margin-bottom: 8px;
   }
 
   .category-badge {
@@ -68,88 +46,103 @@
     text-transform: uppercase;
     padding: 2px 7px;
     border-radius: 20px;
-    display: none;
+  }
+  .category-badge.email    { background: rgba(0,122,255,0.22);   color: #5ac8fa; }
+  .category-badge.task     { background: rgba(48,209,88,0.18);   color: #30d158; }
+  .category-badge.research { background: rgba(255,159,10,0.22);  color: #ff9f0a; }
+  .category-badge.idea     { background: rgba(191,90,242,0.22);  color: #bf5af2; }
+  .category-badge.focus    { background: rgba(255,214,10,0.18);  color: #ffd60a; }
+  .category-badge.alert    { background: rgba(255,69,58,0.22);   color: #ff453a; }
+  .category-badge.writing  { background: rgba(90,200,250,0.18);  color: #5ac8fa; }
+
+  .wordmark {
+    font-size: 10px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.22);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
   }
 
-  .category-badge.email    { background: rgba(0,122,255,0.2);    color: #5ac8fa; }
-  .category-badge.task     { background: rgba(48,209,88,0.15);   color: #30d158; }
-  .category-badge.research { background: rgba(255,159,10,0.2);   color: #ff9f0a; }
-  .category-badge.idea     { background: rgba(191,90,242,0.2);   color: #bf5af2; }
-  .category-badge.focus    { background: rgba(255,214,10,0.15);  color: #ffd60a; }
-  .category-badge.alert    { background: rgba(255,69,58,0.2);    color: #ff453a; }
-  .category-badge.writing  { background: rgba(90,200,250,0.15);  color: #5ac8fa; }
-
+  /* ── Message ─── */
   .message {
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.90);
-    line-height: 1.45;
-    margin-bottom: 7px;
-    font-weight: 400;
-  }
-
-  .action-hint {
-    font-size: 11px;
-    color: rgba(48, 209, 88, 0.85);
+    color: rgba(255, 255, 255, 0.92);
+    line-height: 1.42;
     margin-bottom: 11px;
-    display: none;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
+  /* ── Bottom row ─── */
   .actions {
     display: flex;
-    gap: 7px;
+    align-items: center;
+    gap: 6px;
     -webkit-app-region: no-drag;
   }
 
-  button {
-    flex: 1;
-    padding: 6px 10px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    border-radius: 9px;
-    background: rgba(255, 255, 255, 0.07);
-    color: rgba(255, 255, 255, 0.75);
-    font-size: 12px;
-    font-family: -apple-system, sans-serif;
-    font-weight: 500;
+  .feedback-btn {
+    padding: 4px 9px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 11px;
+    font-family: inherit;
     cursor: pointer;
-    transition: all 0.12s ease;
-    letter-spacing: 0.01em;
+    transition: background 0.12s, color 0.12s;
+    white-space: nowrap;
   }
+  .feedback-btn:hover { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.85); }
+  .feedback-btn:active { transform: scale(0.96); }
 
-  button:hover {
-    background: rgba(255, 255, 255, 0.14);
-    color: white;
-    border-color: rgba(255, 255, 255, 0.2);
-  }
-
-  button:active { transform: scale(0.97); }
-
-  button.primary {
-    background: rgba(48, 209, 88, 0.18);
-    border-color: rgba(48, 209, 88, 0.35);
+  .open-chat-btn {
+    margin-left: auto;
+    background: none;
+    border: none;
     color: #30d158;
+    font-size: 11px;
     font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 4px 0;
+    transition: opacity 0.12s;
+    white-space: nowrap;
+  }
+  .open-chat-btn:hover  { opacity: 0.75; }
+  .open-chat-btn:active { opacity: 0.5; }
+
+  /* ── Progress bar ─── */
+  .progress-wrap {
+    height: 2px;
+    background: rgba(255, 255, 255, 0.05);
   }
 
-  button.primary:hover {
-    background: rgba(48, 209, 88, 0.28);
-    border-color: rgba(48, 209, 88, 0.5);
-    color: #4ddb6e;
+  .progress-fill {
+    height: 2px;
+    width: 100%;
+    background: rgba(48, 209, 88, 0.55);
   }
 </style>
 </head>
 <body>
 <div class="container">
-  <div class="header">
-    <div class="dot"></div>
-    <span class="brand">Covexy</span>
-    <span class="category-badge" id="badge"></span>
+  <div class="inner">
+    <div class="header">
+      <span class="category-badge focus" id="badge">FOCUS</span>
+      <span class="wordmark">Covexy</span>
+    </div>
+    <div class="message" id="message"></div>
+    <div class="actions">
+      <button class="feedback-btn" onclick="sendFeedback('thumbs-up')">👍 Helpful</button>
+      <button class="feedback-btn" onclick="sendFeedback('thumbs-down')">👎 Not useful</button>
+      <button class="open-chat-btn"  onclick="openChat()">Open chat →</button>
+    </div>
   </div>
-  <div class="message" id="message">Analyzing your screen…</div>
-  <div class="action-hint" id="action-hint"></div>
-  <div class="actions">
-    <button onclick="sendAction('dismiss')">Dismiss</button>
-    <button onclick="sendAction('later')">Later</button>
-    <button class="primary" onclick="sendAction('open-chat')">Open Covexy</button>
+  <div class="progress-wrap">
+    <div class="progress-fill" id="progress-bar"></div>
   </div>
 </div>
 <script src="overlay.js"></script>

@@ -353,6 +353,13 @@ async function init () {
   window.electronAPI.onSettingsUpdate((d) => {
     loadSettingsUI(d)
   })
+
+  window.electronAPI.onShowChatContext((insight) => {
+    switchTab('chat')
+    const input = document.getElementById('chat-input')
+    input.value = insight
+    autoResize(input)
+  })
 }
 
 init()

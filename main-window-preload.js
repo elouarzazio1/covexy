@@ -19,8 +19,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   minimizeWindow:    ()     => ipcRenderer.send('minimize-main-window'),
 
   // ── Push subscriptions ───────────────────────────────────────
-  onInsightsUpdate:  (cb) => ipcRenderer.on('insights-update',  (_, d) => cb(d)),
-  onMemoryUpdate:    (cb) => ipcRenderer.on('memory-update',    (_, d) => cb(d)),
-  onSettingsUpdate:  (cb) => ipcRenderer.on('settings-update',  (_, d) => cb(d)),
-  onProfileUpdate:   (cb) => ipcRenderer.on('profile-update',   (_, d) => cb(d)),
+  onInsightsUpdate:  (cb) => ipcRenderer.on('insights-update',   (_, d) => cb(d)),
+  onMemoryUpdate:    (cb) => ipcRenderer.on('memory-update',     (_, d) => cb(d)),
+  onSettingsUpdate:  (cb) => ipcRenderer.on('settings-update',   (_, d) => cb(d)),
+  onProfileUpdate:   (cb) => ipcRenderer.on('profile-update',    (_, d) => cb(d)),
+  onShowChatContext: (cb) => ipcRenderer.on('show-chat-context', (_, d) => cb(d)),
 })

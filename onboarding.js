@@ -71,7 +71,7 @@ async function doTest () {
   const { ok, error } = await window.covexy.testApiKey(key)
 
   if (ok) {
-    status.textContent = '✓ Connected to google/gemini-3-flash-preview via OpenRouter'
+    status.textContent = '✓ Connected — Covexy AI is ready'
     status.className = 'test-status ok'
     apiKeyTested = true
     btn.innerHTML = '✓ Connected — Continue'
