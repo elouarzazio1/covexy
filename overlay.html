@@ -3,98 +3,130 @@
 <head>
 <meta charset="UTF-8">
 <style>
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
     background: transparent;
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+    font-family: -apple-system, 'SF Pro Text', BlinkMacSystemFont, sans-serif;
     -webkit-app-region: drag;
     user-select: none;
   }
 
   .container {
-    background: rgba(30, 30, 30, 0.75);
-    backdrop-filter: blur(40px) saturate(180%);
-    -webkit-backdrop-filter: blur(40px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: rgba(22, 22, 26, 0.82);
+    backdrop-filter: blur(48px) saturate(200%);
+    -webkit-backdrop-filter: blur(48px) saturate(200%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 18px;
-    padding: 16px 20px;
+    padding: 14px 18px 16px;
     margin: 10px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    box-shadow:
+      0 0 0 0.5px rgba(0, 0, 0, 0.4),
+      0 12px 40px rgba(0, 0, 0, 0.5);
+    animation: slideDown 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
   }
 
   .header {
     display: flex;
     align-items: center;
-    margin-bottom: 10px;
+    gap: 8px;
+    margin-bottom: 9px;
   }
 
   .dot {
-    width: 8px;
-    height: 8px;
+    width: 7px;
+    height: 7px;
     background: #30d158;
     border-radius: 50%;
-    margin-right: 8px;
+    flex-shrink: 0;
     animation: pulse 2s infinite;
+    box-shadow: 0 0 6px rgba(48, 209, 88, 0.5);
   }
 
   @keyframes pulse {
     0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
+    50% { opacity: 0.55; }
   }
 
   .brand {
-    font-size: 11px;
-    font-weight: 600;
-    color: rgba(255, 255, 255, 0.5);
+    font-size: 10px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.4);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    flex: 1;
+  }
+
+  .category-badge {
+    font-size: 9px;
+    font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 20px;
+    display: none;
   }
+
+  .category-badge.email  { background: rgba(0,122,255,0.2);    color: #5ac8fa; }
+  .category-badge.tabs   { background: rgba(255,159,10,0.2);   color: #ffd60a; }
+  .category-badge.error  { background: rgba(255,69,58,0.2);    color: #ff6961; }
+  .category-badge.task   { background: rgba(48,209,88,0.15);   color: #30d158; }
+  .category-badge.deadline { background: rgba(191,90,242,0.2); color: #bf5af2; }
+  .category-badge.focus  { background: rgba(255,214,10,0.15);  color: #ffd60a; }
 
   .message {
     font-size: 13px;
-    color: rgba(255, 255, 255, 0.92);
-    line-height: 1.4;
-    margin-bottom: 14px;
+    color: rgba(255, 255, 255, 0.90);
+    line-height: 1.45;
+    margin-bottom: 13px;
     font-weight: 400;
   }
 
   .actions {
     display: flex;
-    gap: 8px;
+    gap: 7px;
     -webkit-app-region: no-drag;
   }
 
   button {
     flex: 1;
     padding: 6px 10px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.08);
-    color: rgba(255, 255, 255, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 9px;
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(255, 255, 255, 0.75);
     font-size: 12px;
     font-family: -apple-system, sans-serif;
+    font-weight: 500;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all 0.12s ease;
+    letter-spacing: 0.01em;
   }
 
   button:hover {
-    background: rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.14);
     color: white;
+    border-color: rgba(255, 255, 255, 0.2);
   }
 
+  button:active { transform: scale(0.97); }
+
   button.primary {
-    background: rgba(48, 209, 88, 0.25);
-    border-color: rgba(48, 209, 88, 0.4);
+    background: rgba(48, 209, 88, 0.18);
+    border-color: rgba(48, 209, 88, 0.35);
     color: #30d158;
+    font-weight: 600;
   }
 
   button.primary:hover {
-    background: rgba(48, 209, 88, 0.35);
+    background: rgba(48, 209, 88, 0.28);
+    border-color: rgba(48, 209, 88, 0.5);
+    color: #4ddb6e;
   }
 </style>
 </head>
@@ -103,12 +135,13 @@
   <div class="header">
     <div class="dot"></div>
     <span class="brand">Covexy</span>
+    <span class="category-badge" id="badge"></span>
   </div>
   <div class="message" id="message">Analyzing your screen...</div>
   <div class="actions">
-    <button onclick="sendAction('done')">Done</button>
+    <button onclick="sendAction('dismiss')">Dismiss</button>
     <button onclick="sendAction('later')">Later</button>
-    <button class="primary" onclick="sendAction('help')">Help me with this</button>
+    <button class="primary" onclick="sendAction('help')">Open Covexy</button>
   </div>
 </div>
 <script src="overlay.js"></script>
