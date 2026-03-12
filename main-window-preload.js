@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron')
+const { contextBridge, ipcRenderer, shell } = require('electron')
 
 contextBridge.exposeInMainWorld('electronAPI', {
   // ── One-time data fetch ──────────────────────────────────────
@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveTavilyKey:     (key)  => ipcRenderer.invoke('save-tavily-key', key),
   testTavilyKey:     (key)  => ipcRenderer.invoke('test-tavily-key', key),
   getWhisperStatus:  ()     => ipcRenderer.invoke('get-whisper-status'),
+  openExternal:      (url)  => shell.openExternal(url),
 
   // ── Push subscriptions ───────────────────────────────────────
   onSwitchTab:       (cb) => ipcRenderer.on('switch-tab',       (_, d) => cb(d)),

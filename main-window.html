@@ -228,28 +228,39 @@ html, body {
 .empty-title { font-size: 14px; font-weight: 600; margin-bottom: 6px; color: var(--text-dim); }
 .empty-body  { font-size: 12px; line-height: 1.55; max-width: 270px; margin: 0 auto; }
 
-/* ── Insight items ───────────────────────────────────────── */
-.insight {
-  display: flex;
-  gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border);
-  animation: fadeUp 0.2s ease;
-  -webkit-app-region: no-drag;
-}
-.insight:last-child { border-bottom: none; }
-
+/* ── Feed cards ───────────────────────────────────────────── */
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
+.insight-card {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 14px 12px 14px;
+  border-bottom: 1px solid var(--border);
+  border-left: 3px solid #E35335;
+  cursor: pointer;
+  transition: background 0.15s;
+  animation: fadeUp 0.2s ease;
+  -webkit-app-region: no-drag;
+}
+.insight-card:last-child { border-bottom: none; }
+.insight-card:hover { background: rgba(255,255,255,0.03); }
+
+.insight-card-header {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
 .insight-icon {
-  width: 32px; height: 32px;
-  border-radius: 8px;
+  width: 28px; height: 28px;
+  border-radius: 7px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 14px;
+  font-size: 13px;
   flex-shrink: 0;
+  margin-top: 1px;
 }
 /* New categories */
 .insight-icon.life     { background: var(--c-life-bg);     color: var(--c-life);     }
@@ -269,15 +280,64 @@ html, body {
 .insight-icon.writing  { background: var(--c-writing-bg);  color: var(--c-writing);  }
 .insight-icon.other    { background: var(--surface);       color: var(--text-dim);   }
 
-.insight-body { flex: 1; min-width: 0; }
+.insight-card-meta { flex: 1; min-width: 0; }
 .insight-text {
-  font-size: 13px; color: var(--text); line-height: 1.4;
-  margin-bottom: 3px; white-space: normal;
+  font-size: 13px; color: var(--text); line-height: 1.45;
+  margin-bottom: 4px; white-space: normal;
 }
-.insight-action {
-  font-size: 11px; color: var(--accent); margin-bottom: 3px;
+.insight-action-line {
+  font-size: 11px; color: #E35335; margin-bottom: 4px; font-weight: 500;
 }
 .insight-time { font-size: 11px; color: var(--text-faint); }
+
+.insight-chevron {
+  font-size: 11px; color: var(--text-faint);
+  transition: transform 0.2s ease;
+  margin-top: 2px; flex-shrink: 0; padding-left: 4px;
+}
+.insight-card.expanded .insight-chevron { transform: rotate(180deg); }
+
+/* Expanded body */
+.insight-expanded-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.2s ease;
+}
+.insight-card.expanded .insight-expanded-body { max-height: 700px; }
+
+.insight-why-now {
+  font-size: 12px; color: var(--text-dim); line-height: 1.5;
+  margin-top: 12px; margin-left: 38px;
+}
+.insight-divider {
+  border: none; border-top: 1px solid var(--border);
+  margin: 10px 0 10px 38px;
+}
+.insight-sources-title {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-faint);
+  margin: 0 0 8px 38px;
+}
+.insight-source-item { margin: 0 0 10px 38px; }
+.insight-source-link {
+  font-size: 12px; color: var(--text); font-weight: 500;
+  cursor: pointer; text-decoration: none; display: block;
+  -webkit-app-region: no-drag;
+}
+.insight-source-link:hover { text-decoration: underline; }
+.insight-source-desc {
+  font-size: 11px; color: var(--text-faint); line-height: 1.4; margin-top: 2px;
+}
+.insight-no-sources {
+  font-size: 12px; color: var(--text-faint); font-style: italic;
+  margin: 0 0 8px 38px;
+}
+.insight-show-less {
+  font-size: 11px; color: var(--text-dim); background: none; border: none;
+  cursor: pointer; padding: 8px 0 4px 38px; font-family: inherit;
+  display: block; -webkit-app-region: no-drag;
+}
+.insight-show-less:hover { color: var(--text); }
 
 /* ── Memory ──────────────────────────────────────────────── */
 .day-group { margin-bottom: 20px; }
@@ -544,8 +604,8 @@ html, body {
 
     <nav class="nav">
       <div class="nav-item active" id="nav-insights" onclick="switchTab('insights')">
-        <span class="nav-icon">⬡</span>
-        <span>Today's Insights</span>
+        <span class="nav-icon">✦</span>
+        <span>For You</span>
         <span class="badge" id="insights-badge" style="display:none">0</span>
       </div>
       <div class="nav-item" id="nav-chat" onclick="switchTab('chat')">
@@ -570,17 +630,17 @@ html, body {
   <!-- ── Content ───────────────────────────── -->
   <div class="content">
 
-    <!-- ── INSIGHTS PANEL ─────────────────── -->
+    <!-- ── FOR YOU PANEL ─────────────────── -->
     <div class="panel active" id="panel-insights">
       <div class="panel-header">
-        <div class="panel-title">Today's Insights</div>
+        <div class="panel-title">For You</div>
         <div class="panel-sub" id="insights-sub">Loading…</div>
       </div>
       <div class="scroll-area" id="insights-list">
         <div class="empty">
-          <div class="empty-icon">⬡</div>
-          <div class="empty-title">All clear for now</div>
-          <div class="empty-body">Covexy watches silently and only surfaces insights when there's something genuinely worth your attention.</div>
+          <div class="empty-icon">✦</div>
+          <div class="empty-title">Your feed is empty for now</div>
+          <div class="empty-body">Covexy is watching your screen and will surface something when it matters.</div>
         </div>
       </div>
     </div>

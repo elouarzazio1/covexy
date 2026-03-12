@@ -412,6 +412,42 @@ async function webSearch (query) {
   }
 }
 
+async function webSearchFull (query) {
+  const tavilyKey = loadTavilyKey()
+  if (tavilyKey) {
+    try {
+      const response = await axios.post(
+        'https://api.tavily.com/search',
+        { api_key: tavilyKey, query, search_depth: 'basic', max_results: 3, include_answer: true },
+        { timeout: 8000 }
+      )
+      const results = response.data.results || []
+      const sources = results.slice(0, 3).map(r => ({
+        title:       r.title || '',
+        url:         r.url   || '',
+        description: (r.content || '').slice(0, 120)
+      })).filter(s => s.title || s.url)
+      const text = response.data.answer ||
+        sources.map(s => s.description).filter(Boolean).join(' | ')
+      return { text, sources }
+    } catch (e) {
+      console.log('[Covexy] Tavily search failed:', e.message)
+    }
+  }
+  // DuckDuckGo fallback (no structured sources)
+  try {
+    const response = await axios.get(
+      'https://api.duckduckgo.com/',
+      { params: { q: query, format: 'json', no_redirect: 1, no_html: 1 }, timeout: 5000 }
+    )
+    const text = response.data.AbstractText ||
+      response.data.RelatedTopics?.[0]?.Text || ''
+    return { text, sources: [] }
+  } catch (e) {
+    return { text: '', sources: [] }
+  }
+}
+
 const SEARCH_RE = /mention\.ma|inferencewatch|inference\s*watch|\bgeo\b|competitor|market\s*share|news|latest|recent|funding|launch|announc|valuation|startup|growth\s*rate|trend/i
 
 function shouldSearchForMessage (msg) {
@@ -584,9 +620,21 @@ async function analyzeScreen () {
       return
     }
 
+    // Run Tavily search BEFORE saving so sources are persisted with the insight
+    let searchResult  = ''
+    let searchSources = []
+    if (searchTerms) {
+      try {
+        const found = await webSearchFull(searchTerms)
+        if (found.text)    searchResult  = found.text
+        if (found.sources) searchSources = found.sources
+        console.log('[Covexy] 🔍 Search enrichment attached:', searchTerms)
+      } catch { /* non-critical */ }
+    }
+
     // Always log to memory and activity regardless of confidence
     // Returns false if dedup check fires — skip notification in that case
-    const saved = addMemoryEntry({ type: 'proactive_insight', content: insight, category, action, prepared, whyNow, tags: [category.toLowerCase()], confidence })
+    const saved = addMemoryEntry({ type: 'proactive_insight', content: insight, category, action, prepared, whyNow, search: searchTerms, sources: searchSources, tags: [category.toLowerCase()], confidence })
     if (!saved) {
       console.log('[Covexy] 🔁 Duplicate insight suppressed — skipping notification')
       isProcessing = false
@@ -609,21 +657,9 @@ async function analyzeScreen () {
       return
     }
 
-    // Run Tavily search on SEARCH keywords to enrich the insight card
-    let searchResult = ''
-    if (searchTerms) {
-      try {
-        const found = await webSearch(searchTerms)
-        if (found) {
-          searchResult = found
-          console.log('[Covexy] 🔍 Search enrichment attached:', searchTerms)
-        }
-      } catch { /* non-critical — toast shows without it */ }
-    }
-
     console.log(`[Covexy] ✅ HIGH confidence [${category}]: ${insight}`)
     lastNotifTime = Date.now()
-    showToast({ category, insight, whyNow, action, searchResult })
+    showToast({ category, insight, whyNow, action, searchResult, sources: searchSources })
 
   } catch (err) {
     console.log('[Covexy] ❌ Scan error:', err.message)

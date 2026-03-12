@@ -5,6 +5,7 @@ let currentTab      = 'insights'
 let msgCounter      = 0
 let isChatLoading   = false
 let currentSettings = {}
+const expandedCards = new Set()
 
 // ── Category config ───────────────────────────────────────────────────────────
 const CAT = {
@@ -66,6 +67,23 @@ function switchTab (tab) {
 }
 
 // ── Render insights ───────────────────────────────────────────────────────────
+function openSource (el) {
+  const url = el.getAttribute('data-href')
+  if (url) window.electronAPI.openExternal(url)
+}
+
+function toggleCard (id) {
+  const card = document.querySelector(`.insight-card[data-card-id="${id}"]`)
+  if (!card) return
+  if (expandedCards.has(id)) {
+    expandedCards.delete(id)
+    card.classList.remove('expanded')
+  } else {
+    expandedCards.add(id)
+    card.classList.add('expanded')
+  }
+}
+
 function renderInsights () {
   const today = insights.filter(h => isToday(h.timestamp))
   const list  = document.getElementById('insights-list')
@@ -77,9 +95,9 @@ function renderInsights () {
     badge.style.display = 'none'
     list.innerHTML = `
       <div class="empty">
-        <div class="empty-icon">⬡</div>
-        <div class="empty-title">All clear for now</div>
-        <div class="empty-body">Covexy watches silently and only surfaces insights when there's something genuinely worth your attention.</div>
+        <div class="empty-icon">✦</div>
+        <div class="empty-title">Your feed is empty for now</div>
+        <div class="empty-body">Covexy is watching your screen and will surface something when it matters.</div>
       </div>`
     return
   }
@@ -89,20 +107,54 @@ function renderInsights () {
   badge.style.display = 'flex'
 
   list.innerHTML = today.map(item => {
-    const c = catFor(item)
+    const cardId = 'c' + String(item.timestamp).replace(/[^a-zA-Z0-9]/g, '')
+    const c      = catFor(item)
+
     const actionHtml = item.action
-      ? `<div class="insight-action">→ ${esc(item.action)}</div>`
+      ? `<div style="color:#E35335;font-size:12px;font-weight:500;margin-top:4px;">→ ${esc(item.action)}</div>`
       : ''
+
+    const whyNowHtml = item.whyNow
+      ? `<div class="insight-why-now">${esc(item.whyNow)}</div>`
+      : ''
+
+    let sourcesHtml = ''
+    if (item.sources && item.sources.length > 0) {
+      const sourceItems = item.sources.map(s => `
+        <div class="insight-source-item">
+          <a class="insight-source-link" data-href="${esc(s.url || '')}" onclick="openSource(this);return false;" href="#">${esc(s.title || s.url || 'Source')}</a>
+          ${s.description ? `<div class="insight-source-desc">${esc(s.description)}</div>` : ''}
+        </div>`).join('')
+      sourcesHtml = `<div class="insight-sources-title">Sources</div>${sourceItems}`
+    } else {
+      sourcesHtml = `<div class="insight-no-sources">No sources found</div>`
+    }
+
     return `
-      <div class="insight">
-        <div class="insight-icon ${c.cls}">${c.icon}</div>
-        <div class="insight-body">
-          <div class="insight-text">${esc(item.content)}</div>
-          ${actionHtml}
-          <div class="insight-time">${fmtTime(item.timestamp)}</div>
+      <div class="insight-card" data-card-id="${cardId}" onclick="toggleCard('${cardId}')">
+        <div class="insight-card-header">
+          <div class="insight-icon ${c.cls}">${c.icon}</div>
+          <div style="flex:1;min-width:0;">
+            <div class="insight-text">${esc(item.content)}</div>
+            ${actionHtml}
+            <div class="insight-time">${fmtTime(item.timestamp)}</div>
+          </div>
+          <div class="insight-chevron">▾</div>
+        </div>
+        <div class="insight-expanded-body">
+          ${whyNowHtml}
+          <hr class="insight-divider">
+          ${sourcesHtml}
+          <button class="insight-show-less" onclick="event.stopPropagation();toggleCard('${cardId}')">Show less ▴</button>
         </div>
       </div>`
   }).join('')
+
+  // Restore expanded state after re-render
+  expandedCards.forEach(id => {
+    const card = document.querySelector(`.insight-card[data-card-id="${id}"]`)
+    if (card) card.classList.add('expanded')
+  })
 }
 
 // ── Render memory ─────────────────────────────────────────────────────────────
