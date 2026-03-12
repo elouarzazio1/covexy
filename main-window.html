@@ -339,6 +339,21 @@ html, body {
 }
 .insight-show-less:hover { color: var(--text); }
 
+/* ── Card feedback ───────────────────────────────────────── */
+.insight-feedback {
+  display: flex; justify-content: flex-end; gap: 2px;
+  padding: 5px 0 1px; -webkit-app-region: no-drag;
+}
+.fb-btn {
+  background: none; border: none; cursor: pointer;
+  font-size: 12px; opacity: 0.22; padding: 2px 5px;
+  border-radius: 5px; transition: opacity 0.12s, background 0.12s;
+  -webkit-app-region: no-drag; line-height: 1; font-family: var(--font);
+}
+.fb-btn:hover  { opacity: 0.65; }
+.fb-btn.active { opacity: 1; background: rgba(227,83,53,0.16); }
+.fb-btn.faded  { opacity: 0.07; }
+
 /* ── Memory ──────────────────────────────────────────────── */
 .day-group { margin-bottom: 20px; }
 .day-label {

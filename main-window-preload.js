@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   testTavilyKey:     (key)  => ipcRenderer.invoke('test-tavily-key', key),
   getWhisperStatus:  ()     => ipcRenderer.invoke('get-whisper-status'),
   openExternal:      (url)  => shell.openExternal(url),
+  rateInsight:       (ts, r) => ipcRenderer.invoke('rate-insight', ts, r),
 
   // ── Push subscriptions ───────────────────────────────────────
   onSwitchTab:       (cb) => ipcRenderer.on('switch-tab',       (_, d) => cb(d)),

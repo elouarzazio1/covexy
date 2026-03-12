@@ -569,6 +569,20 @@ async function analyzeScreen () {
       )
     }
 
+    // Inject feedback calibration from rated insights
+    const ratedInsights = memory
+      .filter(m => m.type === 'proactive_insight' && (m.rating === 1 || m.rating === -1))
+      .slice(0, 20)
+    if (ratedInsights.length > 0) {
+      const good = ratedInsights.filter(m => m.rating === 1).map(m => `- ${m.content}`).join('\n')
+      const bad  = ratedInsights.filter(m => m.rating === -1).map(m => `- ${m.content}`).join('\n')
+      let feedbackBlock = '\n\nFEEDBACK HISTORY:\nThe user rated these past insights:'
+      if (good) feedbackBlock += `\nGOOD:\n${good}`
+      if (bad)  feedbackBlock += `\nNOT USEFUL:\n${bad}`
+      feedbackBlock += '\nUse this to calibrate. Surface more like the good ones. Avoid patterns similar to the not useful ones.'
+      systemPrompt += feedbackBlock
+    }
+
     // Log injected profile values for debugging
     console.log('[Covexy] Profile at scan time — name:', profile?.name, '| role:', profile?.profession, '| projects:', profile?.projects?.slice?.(0, 60))
     console.log('[Covexy] Prompt:', systemPrompt)
@@ -959,6 +973,14 @@ ipcMain.handle('get-edit-profile', () => profile)
 // Main window data
 ipcMain.handle('get-insights',      () => getInsights())
 ipcMain.handle('get-memory',        () => memory.slice(0, 60))
+
+ipcMain.handle('rate-insight', (_, timestamp, rating) => {
+  const entry = memory.find(m => m.timestamp === timestamp && m.type === 'proactive_insight')
+  if (!entry) return { ok: false }
+  entry.rating = rating || 0
+  safeWrite(MEMORY_PATH, memory)
+  return { ok: true }
+})
 ipcMain.handle('get-chat-history',  () => todayChatHistory)
 ipcMain.handle('get-settings',        () => settings)
 ipcMain.handle('get-profile',         () => profile)

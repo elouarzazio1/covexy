@@ -72,6 +72,16 @@ function openSource (el) {
   if (url) window.electronAPI.openExternal(url)
 }
 
+function rateInsight (cardId, rating, event) {
+  event.stopPropagation()
+  const today = insights.filter(h => isToday(h.timestamp))
+  const item  = today.find(h => 'c' + String(h.timestamp).replace(/[^a-zA-Z0-9]/g, '') === cardId)
+  if (!item) return
+  item.rating = (item.rating === rating) ? 0 : rating   // toggle off if same button clicked
+  renderInsights()
+  window.electronAPI.rateInsight(item.timestamp, item.rating) // persist in background
+}
+
 function toggleCard (id) {
   const card = document.querySelector(`.insight-card[data-card-id="${id}"]`)
   if (!card) return
@@ -130,6 +140,9 @@ function renderInsights () {
       sourcesHtml = `<div class="insight-no-sources">No sources found</div>`
     }
 
+    const upClass   = item.rating === 1  ? 'active' : (item.rating === -1 ? 'faded' : '')
+    const downClass = item.rating === -1 ? 'active' : (item.rating === 1  ? 'faded' : '')
+
     return `
       <div class="insight-card" data-card-id="${cardId}" onclick="toggleCard('${cardId}')">
         <div class="insight-card-header">
@@ -140,6 +153,10 @@ function renderInsights () {
             <div class="insight-time">${fmtTime(item.timestamp)}</div>
           </div>
           <div class="insight-chevron">▾</div>
+        </div>
+        <div class="insight-feedback" onclick="event.stopPropagation()">
+          <button class="fb-btn ${upClass}"   onclick="rateInsight('${cardId}',  1, event)" title="Useful">👍</button>
+          <button class="fb-btn ${downClass}" onclick="rateInsight('${cardId}', -1, event)" title="Not useful">👎</button>
         </div>
         <div class="insight-expanded-body">
           ${whyNowHtml}
