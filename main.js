@@ -852,7 +852,7 @@ function showToast ({ category, insight, whyNow, action, searchResult }) {
   const { width } = screen.getPrimaryDisplay().workAreaSize
   toastWindow.setPosition(width - 316, 16)
   toastWindow.webContents.send('show-toast', { category, insight, whyNow, action, searchResult })
-  toastWindow.show()
+  toastWindow.showInactive()   // never steals focus from the user's active app
 }
 
 // ─── Onboarding window ────────────────────────────────────────────────────────
