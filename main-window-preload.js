@@ -17,6 +17,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openProfileEditor: ()     => ipcRenderer.send('open-profile-editor'),
   closeWindow:       ()     => ipcRenderer.send('close-main-window'),
   minimizeWindow:    ()     => ipcRenderer.send('minimize-main-window'),
+  getBraveKeyStatus: ()     => ipcRenderer.invoke('get-brave-key-status'),
+  saveBraveKey:      (key)  => ipcRenderer.invoke('save-brave-key', key),
+  testBraveKey:      (key)  => ipcRenderer.invoke('test-brave-key', key),
 
   // ── Push subscriptions ───────────────────────────────────────
   onInsightsUpdate:  (cb) => ipcRenderer.on('insights-update',   (_, d) => cb(d)),

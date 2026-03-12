@@ -283,6 +283,65 @@ async function reTestApiKey () {
   }
 }
 
+// ── Brave Search ──────────────────────────────────────────────────────────────
+async function testBraveKey () {
+  const input  = document.getElementById('brave-api-key')
+  const btn    = document.getElementById('brave-test-btn')
+  const status = document.getElementById('brave-status')
+  const key    = input.value.trim()
+
+  if (!key) {
+    status.textContent = 'Enter a Brave API key first'
+    status.className = 'settings-status err'
+    return
+  }
+
+  btn.disabled = true
+  btn.innerHTML = '<span class="spinner"></span>Testing…'
+  status.textContent = 'Connecting…'
+  status.className = 'settings-status loading'
+
+  const result = await window.electronAPI.testBraveKey(key)
+
+  if (result.ok) {
+    status.textContent = '✓ Connected — key saved'
+    status.className = 'settings-status ok'
+    btn.textContent = '✓ OK'
+    setTimeout(() => { btn.textContent = 'Test'; btn.disabled = false }, 2500)
+  } else {
+    status.textContent = result.error ? `Error: ${result.error}` : 'Connection failed'
+    status.className = 'settings-status err'
+    btn.textContent = 'Test'
+    btn.disabled = false
+  }
+}
+
+async function saveBraveKey () {
+  const input  = document.getElementById('brave-api-key')
+  const btn    = document.getElementById('brave-save-btn')
+  const status = document.getElementById('brave-status')
+  const key    = input.value.trim()
+
+  if (!key) {
+    status.textContent = 'Enter a Brave API key first'
+    status.className = 'settings-status err'
+    return
+  }
+
+  btn.disabled = true
+  btn.textContent = 'Saving…'
+  await window.electronAPI.saveBraveKey(key)
+  status.textContent = '✓ Key saved'
+  status.className = 'settings-status ok'
+  btn.textContent = '✓ Saved'
+  setTimeout(() => { btn.textContent = 'Save'; btn.disabled = false }, 1500)
+}
+
+function toggleBraveKeyVisibility () {
+  const input = document.getElementById('brave-api-key')
+  input.type = input.type === 'password' ? 'text' : 'password'
+}
+
 let clearConfirmPending = false
 function clearMemoryConfirm () {
   const btn = document.querySelector('.settings-btn.danger')

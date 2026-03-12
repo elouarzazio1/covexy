@@ -5,7 +5,7 @@
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --green:#30d158;--green-dim:rgba(48,209,88,.14);--green-mid:rgba(48,209,88,.28);
+  --green:#E35335;--green-dim:rgba(227,83,53,.14);--green-mid:rgba(227,83,53,.28);
   --bg:rgba(14,14,18,.96);--surface:rgba(255,255,255,.05);--border:rgba(255,255,255,.08);
   --border-lit:rgba(255,255,255,.14);--text:rgba(255,255,255,.92);--dim:rgba(255,255,255,.4);
   --faint:rgba(255,255,255,.2);--red:rgba(255,69,58,.85);
@@ -26,8 +26,8 @@ html,body{width:100%;height:100%;font-family:var(--font);background:transparent;
 
 /* Brand */
 .brand{display:flex;align-items:center;gap:9px;margin-bottom:36px}
-.brand-dot{width:10px;height:10px;background:var(--green);border-radius:50%;box-shadow:0 0 10px rgba(48,209,88,.5);animation:breathe 2s ease-in-out infinite}
-@keyframes breathe{0%,100%{opacity:1;box-shadow:0 0 10px rgba(48,209,88,.5)}50%{opacity:.7;box-shadow:0 0 5px rgba(48,209,88,.25)}}
+.brand-dot{width:10px;height:10px;background:var(--green);border-radius:50%;box-shadow:0 0 10px rgba(227,83,53,.5);animation:breathe 2s ease-in-out infinite}
+@keyframes breathe{0%,100%{opacity:1;box-shadow:0 0 10px rgba(227,83,53,.5)}50%{opacity:.7;box-shadow:0 0 5px rgba(227,83,53,.25)}}
 .brand-name{font-size:17px;font-weight:700;color:var(--text);letter-spacing:.01em}
 
 /* Card */
@@ -38,7 +38,7 @@ html,body{width:100%;height:100%;font-family:var(--font);background:transparent;
 /* Progress dots (profile steps) */
 .progress{display:flex;gap:7px;margin-bottom:32px}
 .progress-dot{width:6px;height:6px;border-radius:50%;background:var(--faint);transition:all .2s}
-.progress-dot.active{background:var(--green);box-shadow:0 0 6px rgba(48,209,88,.5)}
+.progress-dot.active{background:var(--green);box-shadow:0 0 6px rgba(227,83,53,.5)}
 .progress-dot.done{background:rgba(48,209,88,.4)}
 
 /* Inputs */
@@ -108,7 +108,8 @@ textarea{min-height:88px;line-height:1.5}
 
   <div class="brand">
     <div class="brand-dot"></div>
-    <span class="brand-name">Covexy</span>
+    <img src="assets/covexy-logo-wr.png" height="22" style="opacity:.92" onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
+    <span class="brand-name" style="display:none">Covexy</span>
   </div>
 
   <div class="card">

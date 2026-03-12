@@ -38,14 +38,15 @@ let todayActivity   = []
 let todayChatHistory = []
 
 // ─── File paths (populated after app.getPath is available) ───────────────────
-let DATA_DIR, PROFILE_PATH, MEMORY_PATH, SETTINGS_PATH, KEY_PATH
+let DATA_DIR, PROFILE_PATH, MEMORY_PATH, SETTINGS_PATH, KEY_PATH, BRAVE_KEY_PATH
 
 function initPaths () {
-  DATA_DIR      = app.getPath('userData')
-  PROFILE_PATH  = path.join(DATA_DIR, 'covexy-profile.json')
-  MEMORY_PATH   = path.join(DATA_DIR, 'covexy-memory.json')
-  SETTINGS_PATH = path.join(DATA_DIR, 'covexy-settings.json')
-  KEY_PATH      = path.join(DATA_DIR, 'covexy-key.bin')
+  DATA_DIR       = app.getPath('userData')
+  PROFILE_PATH   = path.join(DATA_DIR, 'covexy-profile.json')
+  MEMORY_PATH    = path.join(DATA_DIR, 'covexy-memory.json')
+  SETTINGS_PATH  = path.join(DATA_DIR, 'covexy-settings.json')
+  KEY_PATH       = path.join(DATA_DIR, 'covexy-key.bin')
+  BRAVE_KEY_PATH = path.join(DATA_DIR, 'covexy-brave-key.bin')
 }
 
 function todayStr () { return new Date().toISOString().split('T')[0] }
@@ -82,6 +83,27 @@ function loadApiKey () {
       return safeStorage.decryptString(fs.readFileSync(KEY_PATH))
     }
     return fs.readFileSync(KEY_PATH, 'utf8')
+  } catch { return null }
+}
+
+// ─── Brave API Key ────────────────────────────────────────────────────────────
+function saveBraveKey (key) {
+  try {
+    if (safeStorage.isEncryptionAvailable()) {
+      fs.writeFileSync(BRAVE_KEY_PATH, safeStorage.encryptString(key))
+    } else {
+      fs.writeFileSync(BRAVE_KEY_PATH, key, 'utf8')
+    }
+  } catch (e) { console.error('[Covexy] saveBraveKey error:', e.message) }
+}
+
+function loadBraveKey () {
+  try {
+    if (!fs.existsSync(BRAVE_KEY_PATH)) return null
+    if (safeStorage.isEncryptionAvailable()) {
+      return safeStorage.decryptString(fs.readFileSync(BRAVE_KEY_PATH))
+    }
+    return fs.readFileSync(BRAVE_KEY_PATH, 'utf8')
   } catch { return null }
 }
 
@@ -217,52 +239,74 @@ async function testApiKey (key) {
 }
 
 // ─── Proactive system prompt ──────────────────────────────────────────────────
-const PROACTIVE_SYSTEM = `You are Covexy, a silent AI that runs on Othmane's Mac. Every 3 minutes you see a screenshot of his screen. You have one job: notice something genuinely useful that Othmane would thank you for surfacing.
+const PROACTIVE_SYSTEM = `You are Covexy, an invisible AI that lives on the user's Mac. You observe their screen periodically. You never speak unless you have something genuinely worth interrupting them for.
 
-You are not a notification machine. You fire rarely and only when it matters. If you are not certain the insight is valuable, respond SKIP.
+You are not a notification system. You are not a screen reader. You are a thinking partner who sees patterns across time and connects dots the user is too close to their work to see.
 
-WHO OTHMANE IS:
-{{PROFILE}}
+WHO YOU ARE TALKING TO:
+Name: {{NAME}}
+Role: {{ROLE}}
+Current projects and priorities: {{PROJECTS}}
+What to never interrupt them about: {{IGNORE_LIST}}
+How they want to be spoken to: {{TONE}}
 
-WHAT YOU HAVE NOTICED RECENTLY:
+WHAT YOU KNOW ABOUT THEIR DAY:
 {{MEMORY}}
 
-WHAT MAKES A GOOD INSIGHT — only trigger for these:
-- An email or message thread visible on screen that looks important and unanswered for more than a few hours
-- A document being edited that has an obvious gap, missing section, or weak argument Othmane might not have noticed
-- Multiple tabs or windows on the same topic suggesting deep research — offer to synthesize
-- Content directly related to mention.ma, Inference Watch, GEO, AI market intelligence, or Othmane's stated priorities — surface a connection or next step
-- A deadline, meeting, or task visible on screen that appears at risk
-- A repeated pattern across recent screenshots — same app, same stuck point — surface the pattern gently
-- Something Othmane was working on earlier today that appears abandoned — a gentle reminder if it seems important
+HOW YOU THINK — THREE TIME DIMENSIONS:
 
-WHAT NEVER TRIGGERS A NOTIFICATION:
-- Terminal, code editors, developer tools, Claude Code
-- Any AI assistant interface (ChatGPT, Claude, Perplexity)
-- File manager, system preferences, OS dialogs
-- Screensaver, lock screen, blank screen, desktop
-- Active video playback or podcast listening (do not interrupt)
-- News browsing or casual reading (log it silently, do not interrupt)
-- Anything matching the user's ignore list: {{IGNORE_LIST}}
-- Any insight you already surfaced in the last 45 minutes
+PAST — what patterns have you noticed across previous scans?
+- Has this same problem, app, or topic appeared multiple times today?
+- Did they start something earlier that appears abandoned or unfinished?
+- Have they been going in circles on something for too long?
+- Is there something they researched earlier that is directly relevant to what they are doing right now?
 
-QUALITY BAR:
-Before responding with an insight, ask yourself: would Othmane thank me for interrupting him with this right now? If the answer is not a clear yes, respond SKIP.
+PRESENT — what is happening right now that has a non-obvious dimension?
+- Is there a risk, consequence, or implication on screen that is not stated anywhere but that a smart colleague would flag?
+- Is there an email, message, or task visible that looks more urgent than the user may realize?
+- Is there a decision being made right now where they are missing a key piece of information?
+
+FUTURE — what is approaching that they may not be tracking?
+- Is there a deadline, meeting, or commitment visible that is closer than it appears?
+- If they continue on their current path, what is the likely outcome — and is it the one they want?
+- Is there an opportunity window that is closing?
+
+THE GOLDEN RULE:
+Never describe what is already visible on screen.
+The user has eyes. They can see their screen.
+Your only value is what they CANNOT see themselves: the connection they missed, the risk they have not considered, the pattern only you can see across time, the thing approaching they have not noticed, the one action that changes their next hour.
+
+If your insight is just describing the screen — SKIP.
+If you are not highly confident it matters — SKIP.
+If you surfaced something similar in the last 60 minutes — SKIP.
+If it touches anything on their ignore list — SKIP.
+
+QUALITY GATE — ask yourself before every response:
+1. Does the user already know this? If yes — SKIP.
+2. Is this genuinely useful right now, at this moment? If no — SKIP.
+3. Would a brilliant trusted colleague interrupt them to say this? If no — SKIP.
+4. Is this specific and actionable, not vague and generic? If no — SKIP.
+5. Does this connect something across past, present, or future in a way the user could not have done themselves? If no — SKIP.
+
+Only fire if all five answers point to yes.
 
 If nothing qualifies, respond:
-SKIP: [one sentence describing what you see on screen — this is logged privately, not shown to Othmane]
+SKIP: [one sentence describing what you see on screen — logged privately, not shown to user]
 
-Otherwise use this exact format:
+Otherwise use exactly this format:
 CATEGORY: [EMAIL / TASK / RESEARCH / IDEA / FOCUS / ALERT / WRITING]
-INSIGHT: [one sentence, max 20 words, direct, specific, no "I notice" or "It seems"]
-ACTION: [optional: one follow-up action, max 10 words]
-CONFIDENCE: [HIGH / MEDIUM] — only HIGH confidence insights are shown as notifications; MEDIUM is logged silently to memory for chat context`
+INSIGHT: [one sentence, max 20 words, direct, specific, no "I notice", no "It seems", no screen description, address the user directly]
+ACTION: [one concrete next step, max 10 words]
+CONFIDENCE: HIGH`
 
 // ─── Chat system prompt ───────────────────────────────────────────────────────
 const CHAT_SYSTEM = `You are Covexy, the user's personal AI assistant. You are not a generic chatbot. You know this person, you have been watching their day, and you are here to help them work better, think clearer, and do more.
 
-USER PROFILE:
-{{PROFILE}}
+WHO YOU ARE TALKING TO:
+Name: {{NAME}}
+Role: {{ROLE}}
+Current projects and priorities: {{PROJECTS}}
+How they want to be spoken to: {{TONE}}
 
 WHAT COVEXY SAW TODAY (screen activity log):
 {{TODAY_ACTIVITY}}
@@ -291,15 +335,39 @@ When the user's message requires current information, live search results will b
 
 IMPORTANT: You have context about what the user has been doing today from the screen activity log. Use this naturally — refer to what they were reading, working on, or researching without making it feel creepy. Act like a colleague who was in the room.`
 
-// ─── Web search ───────────────────────────────────────────────────────────────
+// ─── Web search (Brave + DDG fallback) ───────────────────────────────────────
 async function webSearch (query) {
-  const res = await axios.get('https://api.duckduckgo.com/', {
-    params: { q: query, format: 'json', no_redirect: 1, no_html: 1 },
-    timeout: 8000
-  })
-  return res.data.AbstractText ||
-         res.data.RelatedTopics?.[0]?.Text ||
-         ''
+  const braveKey = loadBraveKey()
+  if (braveKey) {
+    try {
+      const response = await axios.get(
+        'https://api.search.brave.com/res/v1/web/search',
+        {
+          params: { q: query, count: 3, search_lang: 'en' },
+          headers: {
+            'Accept': 'application/json',
+            'Accept-Encoding': 'gzip',
+            'X-Subscription-Token': braveKey
+          },
+          timeout: 5000
+        }
+      )
+      const results = response.data.web?.results?.slice(0, 3) || []
+      if (results.length > 0) {
+        return results.map(r => r.title + ': ' + (r.description || '')).join(' | ')
+      }
+    } catch (e) {
+      console.log('[Covexy] Brave search failed, falling back to DDG:', e.message)
+    }
+  }
+  // DuckDuckGo fallback
+  try {
+    const res = await axios.get('https://api.duckduckgo.com/', {
+      params: { q: query, format: 'json', no_redirect: 1, no_html: 1 },
+      timeout: 5000
+    })
+    return res.data.AbstractText || res.data.RelatedTopics?.[0]?.Text || ''
+  } catch { return '' }
 }
 
 const SEARCH_RE = /mention\.ma|inferencewatch|inference\s*watch|\bgeo\b|competitor|market\s*share|news|latest|recent|funding|launch|announc|valuation|startup|growth\s*rate|trend/i
@@ -337,9 +405,12 @@ async function analyzeScreen () {
     const base64 = await captureScreen()
 
     const systemPrompt = PROACTIVE_SYSTEM
-      .replace('{{PROFILE}}',     buildProfileText())
+      .replace('{{NAME}}',        profile?.name        || 'the user')
+      .replace('{{ROLE}}',        profile?.profession  || 'not specified')
+      .replace('{{PROJECTS}}',    profile?.projects    || 'not specified')
+      .replace('{{IGNORE_LIST}}', profile?.ignore      || 'nothing specified')
+      .replace('{{TONE}}',        profile?.style       || 'direct and concise')
       .replace('{{MEMORY}}',      getRecentMemory(10))
-      .replace('{{IGNORE_LIST}}', profile?.ignore || 'nothing specified')
 
     console.log('[Covexy] 👁  Sending for analysis...')
 
@@ -429,7 +500,10 @@ async function sendChatMessage (userMessage) {
   }
 
   const systemPrompt = CHAT_SYSTEM
-    .replace('{{PROFILE}}',        buildProfileText())
+    .replace('{{NAME}}',           profile?.name       || 'the user')
+    .replace('{{ROLE}}',           profile?.profession || 'not specified')
+    .replace('{{PROJECTS}}',       profile?.projects   || 'not specified')
+    .replace('{{TONE}}',           profile?.style      || 'direct and concise')
     .replace('{{TODAY_ACTIVITY}}', todayActivityText())
     .replace('{{MEMORY}}',         getRecentMemory(10))
 
@@ -520,10 +594,17 @@ function makeTrayIcon (size = 22) {
 
 // ─── Tray ─────────────────────────────────────────────────────────────────────
 function createTray () {
-  if (tray && !tray.isDestroyed()) { tray.destroy(); tray = null } // prevent duplicate on hot-reload
-  const icon = nativeImage.createFromBuffer(makeTrayIcon(22), { scaleFactor: 1 })
-  icon.setTemplateImage(true)
-  tray = new Tray(icon)
+  if (tray && !tray.isDestroyed()) { tray.destroy(); tray = null }
+  const trayIconPath = path.join(__dirname, 'assets', 'covexy-icon-tr.png')
+  let trayImage
+  if (fs.existsSync(trayIconPath)) {
+    trayImage = nativeImage.createFromPath(trayIconPath).resize({ width: 16, height: 16 })
+  } else {
+    // Fallback to generated icon if asset not found
+    trayImage = nativeImage.createFromBuffer(makeTrayIcon(22), { scaleFactor: 1 })
+  }
+  trayImage.setTemplateImage(true)
+  tray = new Tray(trayImage)
   tray.setToolTip('Covexy – Your silent AI')
   tray.on('click', () => showMainWindow())
   updateTrayMenu()
@@ -579,8 +660,13 @@ function createOnboardingWindow (editMode = false) {
 function createMainWindow () {
   mainWindow = new BrowserWindow({
     width: 900, height: 600, minWidth: 720, minHeight: 480,
-    frame: false, transparent: true, vibrancy: 'under-window',
-    visualEffectState: 'active', hasShadow: true,
+    vibrancy: 'hud',
+    visualEffectState: 'active',
+    backgroundColor: 'rgba(0,0,0,0)',
+    transparent: true,
+    titleBarStyle: 'hiddenInset',
+    trafficLightPosition: { x: 16, y: 16 },
+    hasShadow: true,
     webPreferences: { preload: path.join(__dirname, 'main-window-preload.js'), contextIsolation: true },
     show: false
   })
@@ -698,6 +784,41 @@ ipcMain.handle('clear-memory', () => {
 
 ipcMain.on('open-profile-editor', () => createOnboardingWindow(true))
 
+// Brave Search
+ipcMain.handle('get-brave-key-status', () => {
+  const key = loadBraveKey()
+  return { hasKey: !!key }
+})
+
+ipcMain.handle('save-brave-key', (_, key) => {
+  saveBraveKey(key)
+  return true
+})
+
+ipcMain.handle('test-brave-key', async (_, key) => {
+  try {
+    const response = await axios.get(
+      'https://api.search.brave.com/res/v1/web/search',
+      {
+        params: { q: 'test', count: 1 },
+        headers: {
+          'Accept': 'application/json',
+          'Accept-Encoding': 'gzip',
+          'X-Subscription-Token': key
+        },
+        timeout: 8000
+      }
+    )
+    if (response.status === 200) {
+      saveBraveKey(key)
+      return { ok: true }
+    }
+    return { ok: false, error: 'Unexpected response' }
+  } catch (e) {
+    return { ok: false, error: e.response?.data?.message || e.message }
+  }
+})
+
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 app.whenReady().then(() => {
   initPaths()
@@ -707,6 +828,11 @@ app.whenReady().then(() => {
   loadMemory()
   loadTodayActivity()
   loadTodayChat()
+
+  if (process.platform === 'darwin' && app.dock) {
+    const dockIconPath = path.join(__dirname, 'assets', 'covexy-dock.png')
+    if (fs.existsSync(dockIconPath)) app.dock.setIcon(dockIconPath)
+  }
 
   createOverlayWindow()
   createTray()

@@ -16,15 +16,17 @@
 
   .container {
     width: 300px;
-    background: rgba(26, 26, 26, 0.95);
+    background: rgba(15, 15, 16, 0.92);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    border-radius: 14px;
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
     overflow: hidden;
     opacity: 1;
     transform: translateY(0);
     transition: opacity 0.35s ease, transform 0.35s ease;
     -webkit-app-region: drag;
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
   }
 
   .inner {
@@ -102,7 +104,7 @@
     margin-left: auto;
     background: none;
     border: none;
-    color: #30d158;
+    color: #E35335;
     font-size: 11px;
     font-weight: 600;
     font-family: inherit;
@@ -123,7 +125,7 @@
   .progress-fill {
     height: 2px;
     width: 100%;
-    background: rgba(48, 209, 88, 0.55);
+    background: rgba(227, 83, 53, 0.6);
   }
 </style>
 </head>
