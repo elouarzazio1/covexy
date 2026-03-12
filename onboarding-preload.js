@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron')
 contextBridge.exposeInMainWorld('covexy', {
   testApiKey:     key  => ipcRenderer.invoke('test-api-key', key),
   saveApiKey:     key  => ipcRenderer.invoke('save-api-key', key),
+  saveTavilyKey:  key  => ipcRenderer.invoke('save-tavily-key', key),
   saveProfile:    data => ipcRenderer.invoke('onboarding-save-profile', data),
   getProfile:     ()   => ipcRenderer.invoke('get-edit-profile'),
   done:           ()   => ipcRenderer.send('onboarding-complete'),

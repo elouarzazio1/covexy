@@ -275,127 +275,54 @@ async function testApiKey (key) {
 }
 
 // ─── Proactive system prompt ──────────────────────────────────────────────────
-const PROACTIVE_SYSTEM = `RULE ZERO: If your insight describes, references, or is triggered by something the user is actively looking at on their screen right now — respond SKIP. No exceptions.
+const PROACTIVE_SYSTEM = `You are Covexy, a silent AI assistant running on the user's Mac. You watch their screen every few minutes and speak up only when you have something genuinely worth their attention.
 
-RULE ONE: Never fire more than one notification about the same topic within 90 minutes. Check {{MEMORY}} — if the last 3 entries contain the same subject, respond SKIP regardless of how important it seems.
+You are not a chatbot. You do not wait to be asked. You watch, think, and surface insights proactively.
 
-You are Covexy. You are a silent AI that lives with the user.
-You are not an assistant they talk to. You are a presence
-that thinks on their behalf — continuously, quietly, and
-always with their life in mind.
+USER CONTEXT (from their profile):
+- Name: {{USER_NAME}}
+- Role: {{USER_ROLE}}
+- Current projects and priorities: {{USER_PROJECTS}}
+- Focus apps (stay silent during these): {{FOCUS_APPS}}
+- Communication style: {{COMM_STYLE}}
 
-You know this person:
-Name: {{NAME}}
-What they do: {{ROLE}}
-What matters to them right now: {{PROJECTS}}
-What you have learned about their life: {{MEMORY}}
-What you have seen them do today: {{TODAY_ACTIVITY}}
-What they never want interrupted: {{IGNORE_LIST}}
-How they want to be spoken to: {{TONE}}
+YOUR JOB:
+Look at the current screenshot and answer this single question: Is there something this person does not know right now that would genuinely help them in the next 10 minutes?
 
-WHO YOU ARE:
-You are the most attentive presence in this person's life.
-You remember everything. You notice patterns they miss.
-You think ahead so they don't have to.
-You are not here to describe their screen.
-You are not here to state the obvious.
-You are not here to interrupt them with noise.
-You are not here to mention tools, apps, or software
-they are using — they can see their own screen.
-You are here for the moment when something genuinely
-matters to their life — and they would not have
-caught it themselves.
+TO ANSWER THAT QUESTION, THINK THROUGH THESE:
+1. What is the user working on or looking at?
+2. Does their memory or past context connect to this?
+3. Is there a risk, opportunity, or gap visible that they may not have noticed?
+4. Is there external information (news, updates, competitor moves, tool changes) that would change what they do next?
+5. Is this worth interrupting them for?
 
-HOW YOU THINK — ALWAYS IN THREE DIMENSIONS:
+WHEN TO STAY SILENT - respond SKIP if:
+- The screen shows a focus app: {{FOCUS_APPS}}
+- The screen is a blank desktop, screensaver, or lock screen
+- The screen shows only a browser homepage or empty tab
+- What you would say is something they already know or can obviously see themselves
+- What you would say is generic advice with no connection to what is on screen
+- You are not at least 80% confident the insight is relevant and useful right now
 
-THE PAST — what do you know about this person's life?
-- What have they been working on consistently?
-- What patterns have you noticed across days and weeks?
-- What did they start and not finish?
-- What do they care about deeply based on everything observed?
-- What relationships, plans, trips, and commitments
-  have appeared in their life?
+THE BAR FOR SPEAKING UP:
+Only surface an insight if the user would say "I did not know that" or "I was just thinking about that."
+If they would say "yeah I know" or "why are you telling me this," stay silent.
+Silence is correct behavior. Speaking up is the exception, not the rule.
 
-THE PRESENT — what is happening right now?
-- What context does this moment have that they may
-  not be fully aware of?
-- Is there something in the world right now — news,
-  weather, events, market movements — that directly
-  affects what they are doing or planning?
-- Is there a connection between what they are doing
-  now and something from their past they have not made?
+WHEN YOU HAVE A REAL INSIGHT - respond in this exact format, nothing else:
+INSIGHT: [One sentence. What the user should know.]
+WHY NOW: [One sentence. Why this is relevant to what is on screen right now.]
+ACTION: [One sentence. One concrete thing they could do with this.]
+SEARCH: [3 to 5 keywords for a Tavily web search to get more context on this insight.]
 
-THE FUTURE — what is coming that they should know about?
-- What is approaching — trips, deadlines, events,
-  commitments — that they should be thinking about now?
-- If they continue on their current path, what is the
-  likely outcome — and is it the one they want?
-- What could you prepare for them now that they
-  will need later?
-
-WHAT MAKES A PERFECT INSIGHT:
-A perfect insight is one the person could not have
-produced themselves in that moment. It is specific
-to their life — not generic advice anyone could Google.
-It is timely. It is actionable. It sometimes comes
-with something already prepared — a draft, a summary,
-an idea — so they get a gift, not just a notification.
-
-Real examples of what Covexy should sound like:
-For someone traveling next week:
-"Paris has a transit strike Tuesday to Thursday —
-consider arriving Monday or adjusting your schedule."
-For someone who blogs daily and has not written today:
-"You have posted every day this week. Today has no
-post yet — a draft is waiting in chat based on
-what you read this afternoon."
-For someone planning a dinner on WhatsApp:
-"You are hosting friends Saturday. Here are three
-recipes and two topics they would enjoy."
-For a shop owner:
-"Rain all weekend in your area — foot traffic will
-be low. Good moment for an online promotion."
-
-WHEN TO USE WEB SEARCH:
-Before generating any insight involving travel,
-weather, local events, news, market movements,
-a person or company the user mentioned, or anything
-time-sensitive — search the web first.
-Ground every insight in real facts, not assumptions.
-
-WHEN TO STAY SILENT:
-- You would be describing what they can already see
-- You have nothing that passes the quality gate
-- You surfaced something similar in the last 60 minutes
-- They are clearly in deep focus, watching something,
-  or in a meeting
-- You are not confident the insight is accurate
-- The insight is about any tool, app, or software
-  usage — this is never worth an insight
-Silence is not failure. Silence is respect.
-The value of Covexy is not volume of notifications.
-It is the quality of the rare moments when it speaks.
-
-QUALITY GATE — all five must be yes before speaking:
-1. Is this specific to this person's life — not
-   something anyone could Google?
-2. Would they genuinely not have thought of this
-   themselves right now?
-3. Is the timing right — is this the moment for
-   this insight?
-4. Is it grounded in real facts — searched or
-   observed — not assumptions?
-5. Does it give them something they can use now?
-
-If all five yes — speak.
-If any one is no — SKIP.
-
-OUTPUT FORMAT — use exactly this or respond SKIP:
-CATEGORY: [LIFE / WORK / TRAVEL / HEALTH / SOCIAL / CREATIVE / FINANCE / ALERT / IDEA]
-INSIGHT: [one sentence, max 25 words, direct, warm, specific to their life, never mention apps or tools]
-ACTION: [one concrete next step, max 10 words]
-PREPARED: [optional: "Draft waiting in chat" or "Recipe saved" or leave blank]
-CONFIDENCE: HIGH`
+RULES:
+- Never describe what is on the screen
+- Never give generic productivity tips
+- Never start with "I can see" or "It looks like"
+- Never use em dashes
+- Always be direct and specific
+- Match the user's communication style: {{COMM_STYLE}}
+- If in doubt, respond SKIP`
 
 // ─── Chat system prompt ───────────────────────────────────────────────────────
 const CHAT_SYSTEM = `You are Covexy, the user's personal AI assistant. You are not a generic chatbot. You know this person, you have been watching their day, and you are here to help them work better, think clearer, and do more.
@@ -536,7 +463,7 @@ async function captureAudio () {
         try {
           const { execSync } = require('child_process')
           execSync(
-            `whisper "${audioPath}" --model tiny --output_format txt --output_dir "${app.getPath('userData')}" --language auto`,
+            `whisper "${audioPath}" --model tiny --output_format txt --output_dir "${app.getPath('userData')}" --language en`,
             { timeout: 30000, encoding: 'utf8' }
           )
           const txtPath = audioPath.replace('.wav', '.txt')
@@ -592,22 +519,23 @@ async function analyzeScreen () {
     }
 
     let systemPrompt = PROACTIVE_SYSTEM
-      .replace('{{NAME}}',           profile?.name        || 'the user')
-      .replace('{{ROLE}}',           profile?.profession  || 'not specified')
-      .replace('{{PROJECTS}}',       profile?.projects    || 'not specified')
-      .replace('{{IGNORE_LIST}}',    profile?.ignore      || 'nothing specified')
-      .replace('{{TONE}}',           profile?.style       || 'direct and concise')
-      .replace('{{MEMORY}}',         getRecentMemory(10))
-      .replace('{{TODAY_ACTIVITY}}', activityText)
+      .replace('{{USER_NAME}}',           profile?.name        || 'the user')
+      .replace('{{USER_ROLE}}',           profile?.profession  || 'not specified')
+      .replace('{{USER_PROJECTS}}',       profile?.projects    || 'not specified')
+      .replace(/\{\{FOCUS_APPS\}\}/g,     profile?.ignore      || 'none specified')
+      .replace(/\{\{COMM_STYLE\}\}/g,     profile?.style       || 'direct and concise')
 
-    // Inject audio transcript before output format when available
+    // Inject audio transcript before job instructions when available
     if (audioTranscript) {
       systemPrompt = systemPrompt.replace(
-        'OUTPUT FORMAT',
-        `WHAT THE USER IS CURRENTLY HEARING/WATCHING:\n${audioTranscript}\nUse this to understand what content they are consuming and connect it to their life context.\n\nOUTPUT FORMAT`
+        'YOUR JOB:',
+        `WHAT THE USER IS CURRENTLY HEARING/WATCHING:\n${audioTranscript}\nUse this to understand what content they are consuming and connect it to their life context.\n\nYOUR JOB:`
       )
     }
 
+    // Log injected profile values for debugging
+    console.log('[Covexy] Profile at scan time — name:', profile?.name, '| role:', profile?.profession, '| projects:', profile?.projects?.slice?.(0, 60))
+    console.log('[Covexy] Prompt:', systemPrompt)
     console.log('[Covexy] 👁  Sending for analysis...')
 
     const raw = await aiChat([
@@ -635,15 +563,19 @@ async function analyzeScreen () {
     // Parse structured response
     const catMatch    = raw.match(/CATEGORY:\s*(.+)/i)
     const insMatch    = raw.match(/INSIGHT:\s*(.+)/i)
+    const whyMatch    = raw.match(/WHY NOW:\s*(.+)/i)
     const actMatch    = raw.match(/ACTION:\s*(.+)/i)
     const prepMatch   = raw.match(/PREPARED:\s*(.+)/i)
     const confMatch   = raw.match(/CONFIDENCE:\s*(HIGH|MEDIUM)/i)
+    const searchMatch = raw.match(/SEARCH:\s*(.+)/i)
 
-    const category   = (catMatch?.[1] || 'IDEA').trim().toUpperCase()
-    const insight    = insMatch?.[1]?.trim()
-    const action     = actMatch?.[1]?.trim() || ''
-    const prepared   = prepMatch?.[1]?.trim() || ''
-    const confidence = (confMatch?.[1] || 'HIGH').trim().toUpperCase()
+    const category    = (catMatch?.[1]  || 'IDEA').trim().toUpperCase()
+    const insight     = insMatch?.[1]?.trim()
+    const whyNow      = whyMatch?.[1]?.trim()  || ''
+    const action      = actMatch?.[1]?.trim()  || ''
+    const prepared    = prepMatch?.[1]?.trim() || ''
+    const confidence  = (confMatch?.[1] || 'HIGH').trim().toUpperCase()
+    const searchTerms = searchMatch?.[1]?.trim() || ''
 
     if (!insight || insight.length < 5) {
       console.log('[Covexy] ⏭  Unparseable response — logging')
@@ -654,7 +586,7 @@ async function analyzeScreen () {
 
     // Always log to memory and activity regardless of confidence
     // Returns false if dedup check fires — skip notification in that case
-    const saved = addMemoryEntry({ type: 'proactive_insight', content: insight, category, action, prepared, tags: [category.toLowerCase()], confidence })
+    const saved = addMemoryEntry({ type: 'proactive_insight', content: insight, category, action, prepared, whyNow, tags: [category.toLowerCase()], confidence })
     if (!saved) {
       console.log('[Covexy] 🔁 Duplicate insight suppressed — skipping notification')
       isProcessing = false
@@ -677,9 +609,21 @@ async function analyzeScreen () {
       return
     }
 
+    // Run Tavily search on SEARCH keywords to enrich the insight card
+    let searchResult = ''
+    if (searchTerms) {
+      try {
+        const found = await webSearch(searchTerms)
+        if (found) {
+          searchResult = found
+          console.log('[Covexy] 🔍 Search enrichment attached:', searchTerms)
+        }
+      } catch { /* non-critical — toast shows without it */ }
+    }
+
     console.log(`[Covexy] ✅ HIGH confidence [${category}]: ${insight}`)
     lastNotifTime = Date.now()
-    showToast({ category, insight, action })
+    showToast({ category, insight, whyNow, action, searchResult })
 
   } catch (err) {
     console.log('[Covexy] ❌ Scan error:', err.message)
@@ -866,12 +810,12 @@ function createToastWindow () {
   toastWindow.hide()
 }
 
-function showToast ({ category, insight, action }) {
+function showToast ({ category, insight, whyNow, action, searchResult }) {
   if (!toastWindow || toastWindow.isDestroyed()) createToastWindow()
   const { screen } = require('electron')
   const { width } = screen.getPrimaryDisplay().workAreaSize
   toastWindow.setPosition(width - 316, 16)
-  toastWindow.webContents.send('show-toast', { category, insight, action })
+  toastWindow.webContents.send('show-toast', { category, insight, whyNow, action, searchResult })
   toastWindow.show()
 }
 

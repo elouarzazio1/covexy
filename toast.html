@@ -76,11 +76,38 @@
     font-weight: 400;
   }
 
+  .why-now {
+    font-size: 11px;
+    color: rgba(255,255,255,0.42);
+    line-height: 1.4;
+    margin-bottom: 8px;
+    font-style: italic;
+  }
+
   .action-text {
     font-size: 11px;
     color: #E35335;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     font-weight: 500;
+  }
+
+  .search-context {
+    font-size: 11px;
+    color: rgba(255,255,255,0.38);
+    line-height: 1.4;
+    margin-bottom: 10px;
+    border-left: 2px solid rgba(255,255,255,0.10);
+    padding-left: 8px;
+  }
+
+  .search-label {
+    display: block;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.22);
+    margin-bottom: 3px;
   }
 
   .buttons {
@@ -142,7 +169,12 @@
     <span class="wordmark">COVEXY</span>
   </div>
   <div class="insight" id="insight">Loading...</div>
+  <div class="why-now" id="why-now"></div>
   <div class="action-text" id="action"></div>
+  <div class="search-context" id="search-context">
+    <span class="search-label">Web context</span>
+    <span id="search-text"></span>
+  </div>
   <div class="buttons">
     <button class="btn-feedback" id="btn-helpful">👍 Helpful</button>
     <button class="btn-feedback" id="btn-not-useful">👎 Not useful</button>
@@ -168,12 +200,32 @@
 
     document.getElementById('insight').textContent = data.insight || ''
 
+    const whyNowEl = document.getElementById('why-now')
+    if (data.whyNow) {
+      whyNowEl.textContent = data.whyNow
+      whyNowEl.style.display = 'block'
+    } else {
+      whyNowEl.style.display = 'none'
+    }
+
     const actionEl = document.getElementById('action')
     if (data.action) {
       actionEl.textContent = '→ ' + data.action
       actionEl.style.display = 'block'
     } else {
       actionEl.style.display = 'none'
+    }
+
+    const searchCtxEl  = document.getElementById('search-context')
+    const searchTextEl = document.getElementById('search-text')
+    if (data.searchResult) {
+      const snippet = data.searchResult.length > 130
+        ? data.searchResult.slice(0, 130) + '…'
+        : data.searchResult
+      searchTextEl.textContent = snippet
+      searchCtxEl.style.display = 'block'
+    } else {
+      searchCtxEl.style.display = 'none'
     }
 
     // Start 10s countdown progress bar
