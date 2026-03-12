@@ -229,11 +229,23 @@ function quickAction (prompt) {
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────────
+const MASKED_KEY = '........................................'
+
 function loadSettingsUI (s) {
   if (!s) return
   currentSettings = s
 
   loadWhisperStatus()
+
+  // Mask both key fields if keys are already saved
+  window.electronAPI.getApiKeyStatus().then(({ hasKey }) => {
+    const keyInput = document.getElementById('settings-api-key')
+    if (keyInput) keyInput.value = hasKey ? MASKED_KEY : ''
+  })
+  window.electronAPI.getTavilyKeyStatus().then(({ hasKey }) => {
+    const tavilyInput = document.getElementById('tavily-api-key')
+    if (tavilyInput) tavilyInput.value = hasKey ? MASKED_KEY : ''
+  })
 
   const intervalEl = document.getElementById('scan-interval')
   const daysEl     = document.getElementById('memory-days')
@@ -268,7 +280,10 @@ async function reTestApiKey () {
   const status = document.getElementById('retest-status')
   const key    = input.value.trim()
 
-  if (!key) {
+  // When dots are showing, send null so IPC loads the saved key
+  const keyToSend = (key === MASKED_KEY) ? null : key
+
+  if (!keyToSend && key !== MASKED_KEY) {
     status.textContent = 'Enter an API key first'
     status.className = 'settings-status err'
     return
@@ -279,19 +294,47 @@ async function reTestApiKey () {
   status.textContent = 'Connecting…'
   status.className = 'settings-status loading'
 
-  const result = await window.electronAPI.reTestApiKey(key)
+  const result = await window.electronAPI.reTestApiKey(keyToSend)
 
   if (result.ok) {
-    status.textContent = '✓ Connected — key saved'
+    status.textContent = '✓ Connected'
     status.className = 'settings-status ok'
     btn.textContent = '✓ OK'
     setTimeout(() => { btn.textContent = 'Test'; btn.disabled = false }, 2500)
   } else {
-    status.textContent = result.error ? `Error: ${result.error}` : 'Connection failed'
+    status.textContent = result.error ? `Error: ${result.error}` : 'Failed, check your key'
     status.className = 'settings-status err'
     btn.textContent = 'Test'
     btn.disabled = false
   }
+}
+
+async function saveOpenRouterKey () {
+  const input  = document.getElementById('settings-api-key')
+  const btn    = document.getElementById('save-openrouter-btn')
+  const status = document.getElementById('retest-status')
+  const key    = input.value.trim()
+
+  if (key === MASKED_KEY) {
+    status.textContent = 'Key already saved, paste a new key to replace it'
+    status.className = 'settings-status'
+    return
+  }
+
+  if (!key) {
+    status.textContent = 'Enter an API key first'
+    status.className = 'settings-status err'
+    return
+  }
+
+  btn.disabled = true
+  btn.textContent = 'Saving…'
+  await window.electronAPI.saveOpenRouterKey(key)
+  status.textContent = '✓ Key saved'
+  status.className = 'settings-status ok'
+  input.value = MASKED_KEY
+  btn.textContent = '✓ Saved'
+  setTimeout(() => { btn.textContent = 'Save'; btn.disabled = false }, 1500)
 }
 
 // ── Tavily Search ─────────────────────────────────────────────────────────────
@@ -301,7 +344,10 @@ async function testTavilyKey () {
   const status = document.getElementById('tavily-status')
   const key    = input.value.trim()
 
-  if (!key) {
+  // When dots are showing, send null so IPC loads the saved key
+  const keyToSend = (key === MASKED_KEY) ? null : key
+
+  if (!keyToSend && key !== MASKED_KEY) {
     status.textContent = 'Enter a Tavily API key first'
     status.className = 'settings-status err'
     return
@@ -312,15 +358,15 @@ async function testTavilyKey () {
   status.textContent = 'Connecting…'
   status.className = 'settings-status loading'
 
-  const result = await window.electronAPI.testTavilyKey(key)
+  const result = await window.electronAPI.testTavilyKey(keyToSend)
 
   if (result.ok) {
-    status.textContent = '✓ Connected — key saved'
+    status.textContent = '✓ Connected'
     status.className = 'settings-status ok'
     btn.textContent = '✓ OK'
     setTimeout(() => { btn.textContent = 'Test'; btn.disabled = false }, 2500)
   } else {
-    status.textContent = result.error ? `Error: ${result.error}` : 'Connection failed'
+    status.textContent = result.error ? `Error: ${result.error}` : 'Failed, check your key'
     status.className = 'settings-status err'
     btn.textContent = 'Test'
     btn.disabled = false
@@ -333,6 +379,12 @@ async function saveTavilyKeyUI () {
   const status = document.getElementById('tavily-status')
   const key    = input.value.trim()
 
+  if (key === MASKED_KEY) {
+    status.textContent = 'Key already saved, paste a new key to replace it'
+    status.className = 'settings-status'
+    return
+  }
+
   if (!key) {
     status.textContent = 'Enter a Tavily API key first'
     status.className = 'settings-status err'
@@ -344,6 +396,7 @@ async function saveTavilyKeyUI () {
   await window.electronAPI.saveTavilyKey(key)
   status.textContent = '✓ Key saved'
   status.className = 'settings-status ok'
+  input.value = MASKED_KEY
   btn.textContent = '✓ Saved'
   setTimeout(() => { btn.textContent = 'Save'; btn.disabled = false }, 1500)
 }
@@ -416,6 +469,10 @@ async function init () {
   if (v) document.getElementById('settings-version').textContent = `Covexy v${v}`
 
   // Live push subscriptions
+  window.electronAPI.onSwitchTab((tab) => {
+    switchTab(tab)
+  })
+
   window.electronAPI.onInsightsUpdate((d) => {
     insights = d || []
     if (currentTab === 'insights') {

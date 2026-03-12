@@ -22,8 +22,8 @@ const PROFILE_STEPS = [
     key: 'projects', type: 'textarea', placeholder: 'Describe your active projects, goals, or areas of focus…'
   },
   {
-    title: 'What topics or apps should I never interrupt you about?',
-    sub: 'Covexy will stay silent when it sees these.',
+    title: 'Focus apps',
+    sub: 'Covexy stays quiet while you use these apps. It still watches context, but holds notifications until you switch away.',
     key: 'ignore', type: 'textarea', placeholder: 'e.g. gaming, personal social media browsing, Netflix'
   },
   {
@@ -43,6 +43,12 @@ window.addEventListener('DOMContentLoaded', async () => {
     showProfileStep(0)
   }
 })
+
+// ── Welcome step ──────────────────────────────────────────────────────────────
+function startOnboarding () {
+  document.getElementById('step-welcome').classList.remove('active')
+  document.getElementById('step-api').classList.add('active')
+}
 
 // ── API Key step ──────────────────────────────────────────────────────────────
 function onApiInput () {
@@ -71,26 +77,52 @@ async function doTest () {
   const { ok, error } = await window.covexy.testApiKey(key)
 
   if (ok) {
-    status.textContent = '✓ Connected — Covexy AI is ready'
+    status.textContent = '✓ Connected, Covexy AI is ready'
     status.className = 'test-status ok'
     apiKeyTested = true
-    btn.innerHTML = '✓ Connected — Continue'
+    btn.innerHTML = '✓ Connected, Continue'
     btn.onclick = async () => {
       await window.covexy.saveApiKey(key)
-      showProfileStep(0)
+      showTavilyStep()
     }
     btn.disabled = false
   } else {
-    status.textContent = error ? `Error: ${error}` : 'Connection failed — check your API key'
+    status.textContent = error ? `Error: ${error}` : 'Connection failed, check your API key'
     status.className = 'test-status err'
     btn.innerHTML = 'Test connection'
     btn.disabled = false
   }
 }
 
+// ── Tavily step ───────────────────────────────────────────────────────────────
+function showTavilyStep () {
+  document.getElementById('step-api').classList.remove('active')
+  document.getElementById('step-tavily').classList.add('active')
+}
+
+function toggleTavilyPw () {
+  const inp = document.getElementById('tavily-input')
+  inp.type = inp.type === 'password' ? 'text' : 'password'
+}
+
+async function skipTavily () {
+  document.getElementById('step-tavily').classList.remove('active')
+  showProfileStep(0)
+}
+
+async function continueTavily () {
+  const key = document.getElementById('tavily-input').value.trim()
+  if (key.length > 5) {
+    await window.covexy.saveTavilyKey(key)
+  }
+  document.getElementById('step-tavily').classList.remove('active')
+  showProfileStep(0)
+}
+
 // ── Profile steps ─────────────────────────────────────────────────────────────
 function showProfileStep (idx) {
   profileStep = idx
+  document.getElementById('step-welcome')?.classList.remove('active')
   document.getElementById('step-api').classList.remove('active')
   document.getElementById('step-profile').classList.add('active')
 
@@ -145,7 +177,7 @@ function selectStyle (val, el) {
 function profileBack () {
   if (profileStep === 0 && !isEditMode) {
     document.getElementById('step-profile').classList.remove('active')
-    document.getElementById('step-api').classList.add('active')
+    document.getElementById('step-tavily').classList.add('active')
   } else if (profileStep > 0) {
     showProfileStep(profileStep - 1)
   }
@@ -180,9 +212,12 @@ function esc (s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').r
 // Keyboard nav
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) {
+    const welcomeActive = document.getElementById('step-welcome').classList.contains('active')
     const profileActive = document.getElementById('step-profile').classList.contains('active')
     const apiActive     = document.getElementById('step-api').classList.contains('active')
-    if (profileActive) {
+    if (welcomeActive) {
+      startOnboarding()
+    } else if (profileActive) {
       const s = PROFILE_STEPS[profileStep]
       if (s.type !== 'textarea') profileNext()
     } else if (apiActive && apiKeyTested) {

@@ -10,6 +10,32 @@ const fs     = require('fs')
 const zlib   = require('zlib')
 const screenshot = require('screenshot-desktop') // fallback capturer
 
+// ─── Crash protection ─────────────────────────────────────────────────────────
+const logFile = path.join(app.getPath('userData'), 'covexy-error.log')
+process.on('uncaughtException', (err) => {
+  try {
+    fs.appendFileSync(logFile, `[${new Date().toISOString()}] ERROR: ${err.message}\n`)
+  } catch {}
+})
+process.on('unhandledRejection', (reason) => {
+  try {
+    fs.appendFileSync(logFile, `[${new Date().toISOString()}] REJECTION: ${reason}\n`)
+  } catch {}
+})
+
+// ─── Single instance lock ─────────────────────────────────────────────────────
+const gotTheLock = app.requestSingleInstanceLock()
+if (!gotTheLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.focus()
+    }
+  })
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 const MODEL          = 'google/gemini-3-flash-preview'
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
@@ -206,27 +232,32 @@ async function captureScreen () {
       }
       const buf = img.toJPEG(80)
       if (buf.length > 5000) {
-        console.log(`[Covexy] 📸 desktopCapturer — ${(buf.length / 1024).toFixed(1)} KB`)
+        try { console.log(`[Covexy] 📸 desktopCapturer — ${(buf.length / 1024).toFixed(1)} KB`) } catch {}
         return buf.toString('base64')
       }
     }
   } catch (e) {
-    console.log('[Covexy] desktopCapturer failed, using fallback:', e.message)
+    try { console.log('[Covexy] desktopCapturer failed, using fallback:', e.message) } catch {}
   }
 
   // Fallback: screenshot-desktop → nativeImage → JPEG
-  const tmp = path.join(app.getPath('temp'), 'covexy_snap.png')
-  await screenshot({ filename: tmp })
-  const stat = fs.existsSync(tmp) ? fs.statSync(tmp) : null
-  if (!stat || stat.size < 1024) throw new Error('Screenshot blank — check Screen Recording permission')
-  const img  = nativeImage.createFromPath(tmp)
-  const sz   = img.getSize()
-  let w = sz.width, h = sz.height
-  if (w > 1280) { h = Math.floor(h * 1280 / w); w = 1280 }
-  const resized = (w < sz.width) ? img.resize({ width: w, height: h }) : img
-  const buf = resized.toJPEG(80)
-  console.log(`[Covexy] 📸 fallback capturer — ${(buf.length / 1024).toFixed(1)} KB`)
-  return buf.toString('base64')
+  try {
+    const tmp = path.join(app.getPath('temp'), 'covexy_snap.png')
+    await screenshot({ filename: tmp })
+    const stat = fs.existsSync(tmp) ? fs.statSync(tmp) : null
+    if (!stat || stat.size < 1024) throw new Error('Screenshot blank — check Screen Recording permission')
+    const img  = nativeImage.createFromPath(tmp)
+    const sz   = img.getSize()
+    let w = sz.width, h = sz.height
+    if (w > 1280) { h = Math.floor(h * 1280 / w); w = 1280 }
+    const resized = (w < sz.width) ? img.resize({ width: w, height: h }) : img
+    const buf = resized.toJPEG(80)
+    try { console.log(`[Covexy] 📸 fallback capturer — ${(buf.length / 1024).toFixed(1)} KB`) } catch {}
+    return buf.toString('base64')
+  } catch (e) {
+    try { console.log('[Covexy] Fallback capturer error:', e.message) } catch {}
+    throw e
+  }
 }
 
 // ─── OpenRouter helpers ───────────────────────────────────────────────────────
@@ -486,7 +517,7 @@ async function captureAudio () {
 
   return new Promise((resolve) => {
     const audioPath = path.join(app.getPath('userData'), 'temp-audio.wav')
-    let recorder, file
+    let recorder, file, recording
 
     try {
       const recLib = require('node-record-lpcm16')
@@ -494,7 +525,7 @@ async function captureAudio () {
       recorder = recLib.record({ sampleRate: 16000, channels: 1, audioType: 'wav' })
       recording = recorder.stream().pipe(file)
     } catch (e) {
-      console.log('[Covexy] Audio record start error:', e.message)
+      try { console.log('[Covexy] Audio record start error:', e.message) } catch {}
       return resolve(null)
     }
 
@@ -514,13 +545,13 @@ async function captureAudio () {
             try { fs.unlinkSync(txtPath) } catch { /* ignore */ }
             try { fs.unlinkSync(audioPath) } catch { /* ignore */ }
             if (transcript.length > 10) {
-              console.log('[Covexy] 🎤 Audio:', transcript.slice(0, 80))
+              try { console.log('[Covexy] 🎤 Audio:', transcript.slice(0, 80)) } catch {}
               return resolve(transcript)
             }
           }
           resolve(null)
         } catch (e) {
-          console.log('[Covexy] Whisper error:', e.message)
+          try { console.log('[Covexy] Whisper error:', e.message) } catch {}
           resolve(null)
         }
       }, 1000)
@@ -715,15 +746,27 @@ function getInsights () {
 
 // ─── Scanner lifecycle ────────────────────────────────────────────────────────
 function startScanner () {
+  if (!loadApiKey()) {
+    console.log('[Covexy] Scanner waiting — paste API key in Settings')
+    return
+  }
   if (scanTimer) clearInterval(scanTimer)
   console.log(`[Covexy] 🔁 Scanner started — every ${settings.scanInterval / 1000}s`)
   setTimeout(() => {
-    analyzeScreen()
-    scanTimer = setInterval(analyzeScreen, settings.scanInterval)
+    if (loadApiKey()) {
+      analyzeScreen()
+      scanTimer = setInterval(analyzeScreen, settings.scanInterval)
+    } else {
+      console.log('[Covexy] Scanner waiting — paste API key in Settings')
+    }
   }, 15000)
 }
 
 function restartScanner () {
+  if (!loadApiKey()) {
+    console.log('[Covexy] Scanner waiting — no API key')
+    return
+  }
   if (scanTimer) clearInterval(scanTimer)
   scanTimer = setInterval(analyzeScreen, settings.scanInterval)
 }
@@ -937,9 +980,10 @@ ipcMain.handle('get-edit-profile', () => profile)
 ipcMain.handle('get-insights',      () => getInsights())
 ipcMain.handle('get-memory',        () => memory.slice(0, 60))
 ipcMain.handle('get-chat-history',  () => todayChatHistory)
-ipcMain.handle('get-settings',      () => settings)
-ipcMain.handle('get-profile',       () => profile)
-ipcMain.handle('get-version',       () => APP_VERSION)
+ipcMain.handle('get-settings',        () => settings)
+ipcMain.handle('get-profile',         () => profile)
+ipcMain.handle('get-version',         () => APP_VERSION)
+ipcMain.handle('get-api-key-status',  () => ({ hasKey: !!apiKey }))
 
 ipcMain.handle('send-chat', async (_, msg) => {
   try { return { ok: true, reply: await sendChatMessage(msg) } }
@@ -958,10 +1002,17 @@ ipcMain.handle('save-profile-from-settings', (_, data) => {
 
 ipcMain.handle('re-test-api-key', async (_, key) => {
   try {
-    const ok = await testApiKey(key)
-    if (ok) saveApiKey(key)
+    const testKey = key || loadApiKey()
+    if (!testKey) return { ok: false, error: 'No API key saved' }
+    const ok = await testApiKey(testKey)
     return { ok }
   } catch (e) { return { ok: false, error: e.message } }
+})
+
+ipcMain.handle('save-openrouter-key', (_, key) => {
+  saveApiKey(key)
+  if (!scanTimer) startScanner()
+  return true
 })
 
 ipcMain.handle('clear-memory', () => {
@@ -985,10 +1036,12 @@ ipcMain.handle('save-tavily-key', (_, key) => {
 
 ipcMain.handle('test-tavily-key', async (_, key) => {
   try {
+    const testKey = key || loadTavilyKey()
+    if (!testKey) return { ok: false, error: 'No Tavily key saved' }
     const response = await axios.post(
       'https://api.tavily.com/search',
       {
-        api_key: key,
+        api_key: testKey,
         query: 'test',
         search_depth: 'basic',
         max_results: 1,
@@ -996,10 +1049,7 @@ ipcMain.handle('test-tavily-key', async (_, key) => {
       },
       { timeout: 8000 }
     )
-    if (response.status === 200) {
-      saveTavilyKey(key)
-      return { ok: true }
-    }
+    if (response.status === 200) return { ok: true }
     return { ok: false, error: 'Unexpected response' }
   } catch (e) {
     return { ok: false, error: e.response?.data?.message || e.message }
@@ -1011,6 +1061,7 @@ ipcMain.handle('get-whisper-status', () => ({ available: whisperAvailable }))
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 app.whenReady().then(() => {
+  console.log('[Covexy] userData path:', app.getPath('userData'))
   initPaths()
   loadSettings()
   apiKey = loadApiKey()
@@ -1023,11 +1074,21 @@ app.whenReady().then(() => {
   // Whisper availability check
   try {
     const { execSync } = require('child_process')
-    execSync('whisper --version', { timeout: 3000 })
+    execSync('whisper --help', { timeout: 3000 })
     whisperAvailable = true
     console.log('[Covexy] Whisper: available')
   } catch (e) {
     console.log('[Covexy] Whisper: not found, audio disabled')
+  }
+
+  // node-record-lpcm16 availability check
+  if (whisperAvailable) {
+    try {
+      require('node-record-lpcm16')
+    } catch (e) {
+      whisperAvailable = false
+      console.log('[Covexy] Audio disabled — run: npm install')
+    }
   }
 
   if (process.platform === 'darwin' && app.dock) {
@@ -1047,10 +1108,17 @@ app.whenReady().then(() => {
   const schedulePrune = () => setTimeout(() => { pruneMemory(); schedulePrune() }, msToMidnight())
   schedulePrune()
 
-  if (!apiKey || !profile) {
-    console.log('[Covexy] First launch — showing onboarding')
+  if (!profile) {
+    // No profile — first ever launch, run full onboarding
+    console.log('[Covexy] No profile found — showing onboarding')
     createOnboardingWindow()
+  } else if (!apiKey) {
+    // Profile exists but no API key — show main window and open Settings
+    console.log('[Covexy] Profile found, no API key — opening Settings')
+    showMainWindow()
+    setTimeout(() => push('switch-tab', 'settings'), 500)
   } else {
+    // Profile + API key — full ready state
     console.log('[Covexy] ✅ Ready — showing main window, starting scanner')
     showMainWindow()
     startScanner()

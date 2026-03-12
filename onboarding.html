@@ -100,6 +100,11 @@ textarea{min-height:88px;line-height:1.5}
 .step{display:none;flex-direction:column;align-items:center;width:100%;animation:fadeIn .22s ease}
 .step.active{display:flex}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* Welcome step */
+.welcome-wordmark{font-size:34px;font-weight:800;letter-spacing:.12em;color:var(--text);margin-bottom:22px}
+.welcome-features{display:flex;flex-direction:column;gap:12px;width:100%;margin:18px 0 34px}
+.welcome-feature{font-size:13px;color:var(--dim);text-align:center;line-height:1.5}
 </style>
 </head>
 <body>
@@ -114,10 +119,24 @@ textarea{min-height:88px;line-height:1.5}
 
   <div class="card">
 
+    <!-- Step 0: Welcome -->
+    <div class="step active" id="step-welcome">
+      <div class="welcome-wordmark">COVEXY.</div>
+      <div class="step-title">The AI that acts before you ask</div>
+      <div class="welcome-features">
+        <div class="welcome-feature">Watches your screen and learns your context</div>
+        <div class="welcome-feature">Searches the web for what matters to you</div>
+        <div class="welcome-feature">Surfaces insights before you think to look</div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="startOnboarding()">Get Started</button>
+      </div>
+    </div>
+
     <!-- Step 1: API Key -->
-    <div class="step active" id="step-api">
+    <div class="step" id="step-api">
       <div class="step-title">Connect your AI</div>
-      <div class="step-sub">Covexy runs on a powerful AI engine. Paste your API key below — it's stored securely on your Mac and never leaves your device.</div>
+      <div class="step-sub">Covexy runs on a powerful AI engine. Paste your API key below, stored securely on your Mac and never leaving your device.</div>
       <div class="pw-wrap" style="margin-bottom:10px">
         <input type="password" id="api-input" placeholder="Paste your API key…" autocomplete="off" oninput="onApiInput()">
         <button class="pw-toggle" onclick="togglePw()">👁</button>
@@ -125,6 +144,20 @@ textarea{min-height:88px;line-height:1.5}
       <div class="test-status" id="test-status"></div>
       <div class="btn-row" style="margin-top:14px">
         <button class="btn btn-primary" id="test-btn" onclick="doTest()" disabled>Test connection</button>
+      </div>
+    </div>
+
+    <!-- Step 1.5: Tavily (optional) -->
+    <div class="step" id="step-tavily">
+      <div class="step-title">Web Search (Optional)</div>
+      <div class="step-sub">Tavily enables smart web search for better insights. Free at tavily.com</div>
+      <div class="pw-wrap" style="margin-bottom:10px">
+        <input type="password" id="tavily-input" placeholder="Paste Tavily API key (optional)" autocomplete="off">
+        <button class="pw-toggle" onclick="toggleTavilyPw()">👁</button>
+      </div>
+      <div class="btn-row" style="margin-top:14px">
+        <button class="btn btn-secondary" onclick="skipTavily()">Skip for now</button>
+        <button class="btn btn-primary" onclick="continueTavily()">Continue</button>
       </div>
     </div>
 
