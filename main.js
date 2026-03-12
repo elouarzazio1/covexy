@@ -28,6 +28,7 @@ let isProcessing    = false
 let isPaused        = false
 let lastNotifTime   = 0   // ms — enforces 10-min cooldown between overlays
 let scanTimer       = null
+let whisperAvailable = false
 
 // ─── In-memory data ────────────────────────────────────────────────────────────
 let apiKey          = null
@@ -38,15 +39,14 @@ let todayActivity   = []
 let todayChatHistory = []
 
 // ─── File paths (populated after app.getPath is available) ───────────────────
-let DATA_DIR, PROFILE_PATH, MEMORY_PATH, SETTINGS_PATH, KEY_PATH, BRAVE_KEY_PATH
+let DATA_DIR, PROFILE_PATH, MEMORY_PATH, SETTINGS_PATH, KEYS_PATH
 
 function initPaths () {
-  DATA_DIR       = app.getPath('userData')
-  PROFILE_PATH   = path.join(DATA_DIR, 'covexy-profile.json')
-  MEMORY_PATH    = path.join(DATA_DIR, 'covexy-memory.json')
-  SETTINGS_PATH  = path.join(DATA_DIR, 'covexy-settings.json')
-  KEY_PATH       = path.join(DATA_DIR, 'covexy-key.bin')
-  BRAVE_KEY_PATH = path.join(DATA_DIR, 'covexy-brave-key.bin')
+  DATA_DIR      = app.getPath('userData')
+  PROFILE_PATH  = path.join(DATA_DIR, 'covexy-profile.json')
+  MEMORY_PATH   = path.join(DATA_DIR, 'covexy-memory.json')
+  SETTINGS_PATH = path.join(DATA_DIR, 'covexy-settings.json')
+  KEYS_PATH     = path.join(DATA_DIR, 'covexy-keys.json')
 }
 
 function todayStr () { return new Date().toISOString().split('T')[0] }
@@ -64,48 +64,37 @@ function safeWrite (p, data) {
   }
 }
 
-// ─── API Key ──────────────────────────────────────────────────────────────────
-function saveApiKey (key) {
+// ─── Key storage — covexy-keys.json ──────────────────────────────────────────
+// All API keys stored in one JSON file. Each entry: { enc: bool, data: string }
+// enc=true  → data is base64-encoded safeStorage encrypted buffer
+// enc=false → data is plain text (fallback when encryption unavailable)
+
+function saveKeyEntry (name, value) {
   try {
+    const keys = safeRead(KEYS_PATH, {})
     if (safeStorage.isEncryptionAvailable()) {
-      fs.writeFileSync(KEY_PATH, safeStorage.encryptString(key))
+      keys[name] = { enc: true, data: safeStorage.encryptString(value).toString('base64') }
     } else {
-      fs.writeFileSync(KEY_PATH, key, 'utf8')
+      keys[name] = { enc: false, data: value }
     }
-    apiKey = key
-  } catch (e) { console.error('[Covexy] saveApiKey error:', e.message) }
+    safeWrite(KEYS_PATH, keys)
+  } catch (e) { console.error('[Covexy] saveKeyEntry error:', e.message) }
 }
 
-function loadApiKey () {
+function loadKeyEntry (name) {
   try {
-    if (!fs.existsSync(KEY_PATH)) return null
-    if (safeStorage.isEncryptionAvailable()) {
-      return safeStorage.decryptString(fs.readFileSync(KEY_PATH))
-    }
-    return fs.readFileSync(KEY_PATH, 'utf8')
+    const keys = safeRead(KEYS_PATH, {})
+    const entry = keys[name]
+    if (!entry) return null
+    if (entry.enc) return safeStorage.decryptString(Buffer.from(entry.data, 'base64'))
+    return entry.data
   } catch { return null }
 }
 
-// ─── Brave API Key ────────────────────────────────────────────────────────────
-function saveBraveKey (key) {
-  try {
-    if (safeStorage.isEncryptionAvailable()) {
-      fs.writeFileSync(BRAVE_KEY_PATH, safeStorage.encryptString(key))
-    } else {
-      fs.writeFileSync(BRAVE_KEY_PATH, key, 'utf8')
-    }
-  } catch (e) { console.error('[Covexy] saveBraveKey error:', e.message) }
-}
-
-function loadBraveKey () {
-  try {
-    if (!fs.existsSync(BRAVE_KEY_PATH)) return null
-    if (safeStorage.isEncryptionAvailable()) {
-      return safeStorage.decryptString(fs.readFileSync(BRAVE_KEY_PATH))
-    }
-    return fs.readFileSync(BRAVE_KEY_PATH, 'utf8')
-  } catch { return null }
-}
+function saveApiKey (key)    { saveKeyEntry('openRouterKey', key); apiKey = key }
+function loadApiKey ()       { return loadKeyEntry('openRouterKey') }
+function saveTavilyKey (key) { saveKeyEntry('tavilyKey', key) }
+function loadTavilyKey ()    { return loadKeyEntry('tavilyKey') }
 
 // ─── Profile ──────────────────────────────────────────────────────────────────
 function loadProfile  () { profile = safeRead(PROFILE_PATH) }
@@ -413,39 +402,56 @@ When the user's message requires current information, live search results will b
 
 IMPORTANT: You have context about what the user has been doing today from the screen activity log. Use this naturally — refer to what they were reading, working on, or researching without making it feel creepy. Act like a colleague who was in the room.`
 
-// ─── Web search (Brave + DDG fallback) ───────────────────────────────────────
+// ─── Web search (Tavily + DDG fallback) ──────────────────────────────────────
 async function webSearch (query) {
-  const braveKey = loadBraveKey()
-  if (braveKey) {
+  const tavilyKey = loadTavilyKey()
+
+  if (tavilyKey) {
     try {
-      const response = await axios.get(
-        'https://api.search.brave.com/res/v1/web/search',
+      const response = await axios.post(
+        'https://api.tavily.com/search',
         {
-          params: { q: query, count: 3, search_lang: 'en' },
-          headers: {
-            'Accept': 'application/json',
-            'Accept-Encoding': 'gzip',
-            'X-Subscription-Token': braveKey
-          },
-          timeout: 5000
-        }
+          api_key: tavilyKey,
+          query: query,
+          search_depth: 'basic',
+          max_results: 3,
+          include_answer: true
+        },
+        { timeout: 8000 }
       )
-      const results = response.data.web?.results?.slice(0, 3) || []
-      if (results.length > 0) {
-        return results.map(r => r.title + ': ' + (r.description || '')).join(' | ')
+      if (response.data.answer) {
+        return response.data.answer
       }
+      const results = response.data.results || []
+      return results
+        .slice(0, 3)
+        .map(r => r.content || r.title)
+        .filter(Boolean)
+        .join(' | ')
     } catch (e) {
-      console.log('[Covexy] Brave search failed, falling back to DDG:', e.message)
+      console.log('[Covexy] Tavily search failed:', e.message)
     }
   }
-  // DuckDuckGo fallback
+
+  // DuckDuckGo fallback if no Tavily key
   try {
-    const res = await axios.get('https://api.duckduckgo.com/', {
-      params: { q: query, format: 'json', no_redirect: 1, no_html: 1 },
-      timeout: 5000
-    })
-    return res.data.AbstractText || res.data.RelatedTopics?.[0]?.Text || ''
-  } catch { return '' }
+    const response = await axios.get(
+      'https://api.duckduckgo.com/',
+      {
+        params: {
+          q: query,
+          format: 'json',
+          no_redirect: 1,
+          no_html: 1
+        },
+        timeout: 5000
+      }
+    )
+    return response.data.AbstractText ||
+      response.data.RelatedTopics?.[0]?.Text || ''
+  } catch (e) {
+    return ''
+  }
 }
 
 const SEARCH_RE = /mention\.ma|inferencewatch|inference\s*watch|\bgeo\b|competitor|market\s*share|news|latest|recent|funding|launch|announc|valuation|startup|growth\s*rate|trend/i
@@ -474,13 +480,70 @@ async function enrichProfileContext () {
   }
 }
 
+// ─── Audio capture (Whisper) ──────────────────────────────────────────────────
+async function captureAudio () {
+  if (!whisperAvailable) return null
+
+  return new Promise((resolve) => {
+    const audioPath = path.join(app.getPath('userData'), 'temp-audio.wav')
+    let recorder, file
+
+    try {
+      const recLib = require('node-record-lpcm16')
+      file = fs.createWriteStream(audioPath)
+      recorder = recLib.record({ sampleRate: 16000, channels: 1, audioType: 'wav' })
+      recording = recorder.stream().pipe(file)
+    } catch (e) {
+      console.log('[Covexy] Audio record start error:', e.message)
+      return resolve(null)
+    }
+
+    setTimeout(() => {
+      try { recorder.stop(); file.end() } catch { /* ignore */ }
+
+      setTimeout(async () => {
+        try {
+          const { execSync } = require('child_process')
+          execSync(
+            `whisper "${audioPath}" --model tiny --output_format txt --output_dir "${app.getPath('userData')}" --language auto`,
+            { timeout: 30000, encoding: 'utf8' }
+          )
+          const txtPath = audioPath.replace('.wav', '.txt')
+          if (fs.existsSync(txtPath)) {
+            const transcript = fs.readFileSync(txtPath, 'utf8').trim()
+            try { fs.unlinkSync(txtPath) } catch { /* ignore */ }
+            try { fs.unlinkSync(audioPath) } catch { /* ignore */ }
+            if (transcript.length > 10) {
+              console.log('[Covexy] 🎤 Audio:', transcript.slice(0, 80))
+              return resolve(transcript)
+            }
+          }
+          resolve(null)
+        } catch (e) {
+          console.log('[Covexy] Whisper error:', e.message)
+          resolve(null)
+        }
+      }, 1000)
+    }, 30000) // record for 30 seconds
+  })
+}
+
 // ─── Proactive analysis ───────────────────────────────────────────────────────
 async function analyzeScreen () {
   if (isProcessing || isPaused || !apiKey) return
   isProcessing = true
 
   try {
-    const base64 = await captureScreen()
+    const [base64, audioTranscript] = await Promise.all([
+      captureScreen(),
+      captureAudio()
+    ])
+
+    // Save audio to activity log so chat also knows what user was listening to
+    if (audioTranscript) {
+      addActivity(`[Audio] ${audioTranscript.slice(0, 200)}`, false)
+    }
+
     const activityText = todayActivityText()
 
     // Proactive web search: fire when activity log mentions time-sensitive topics
@@ -497,7 +560,7 @@ async function analyzeScreen () {
       } catch { /* non-critical */ }
     }
 
-    const systemPrompt = PROACTIVE_SYSTEM
+    let systemPrompt = PROACTIVE_SYSTEM
       .replace('{{NAME}}',           profile?.name        || 'the user')
       .replace('{{ROLE}}',           profile?.profession  || 'not specified')
       .replace('{{PROJECTS}}',       profile?.projects    || 'not specified')
@@ -505,6 +568,14 @@ async function analyzeScreen () {
       .replace('{{TONE}}',           profile?.style       || 'direct and concise')
       .replace('{{MEMORY}}',         getRecentMemory(10))
       .replace('{{TODAY_ACTIVITY}}', activityText)
+
+    // Inject audio transcript before output format when available
+    if (audioTranscript) {
+      systemPrompt = systemPrompt.replace(
+        'OUTPUT FORMAT',
+        `WHAT THE USER IS CURRENTLY HEARING/WATCHING:\n${audioTranscript}\nUse this to understand what content they are consuming and connect it to their life context.\n\nOUTPUT FORMAT`
+      )
+    }
 
     console.log('[Covexy] 👁  Sending for analysis...')
 
@@ -779,7 +850,7 @@ function createMainWindow () {
     width: 900, height: 600, minWidth: 720, minHeight: 480,
     vibrancy: 'hud',
     visualEffectState: 'active',
-    backgroundColor: 'rgba(0,0,0,0)',
+    backgroundColor: '#00000000',
     transparent: true,
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 16, y: 16 },
@@ -901,33 +972,32 @@ ipcMain.handle('clear-memory', () => {
 
 ipcMain.on('open-profile-editor', () => createOnboardingWindow(true))
 
-// Brave Search
-ipcMain.handle('get-brave-key-status', () => {
-  const key = loadBraveKey()
+// Tavily Search
+ipcMain.handle('get-tavily-key-status', () => {
+  const key = loadTavilyKey()
   return { hasKey: !!key }
 })
 
-ipcMain.handle('save-brave-key', (_, key) => {
-  saveBraveKey(key)
+ipcMain.handle('save-tavily-key', (_, key) => {
+  saveTavilyKey(key)
   return true
 })
 
-ipcMain.handle('test-brave-key', async (_, key) => {
+ipcMain.handle('test-tavily-key', async (_, key) => {
   try {
-    const response = await axios.get(
-      'https://api.search.brave.com/res/v1/web/search',
+    const response = await axios.post(
+      'https://api.tavily.com/search',
       {
-        params: { q: 'test', count: 1 },
-        headers: {
-          'Accept': 'application/json',
-          'Accept-Encoding': 'gzip',
-          'X-Subscription-Token': key
-        },
-        timeout: 8000
-      }
+        api_key: key,
+        query: 'test',
+        search_depth: 'basic',
+        max_results: 1,
+        include_answer: true
+      },
+      { timeout: 8000 }
     )
     if (response.status === 200) {
-      saveBraveKey(key)
+      saveTavilyKey(key)
       return { ok: true }
     }
     return { ok: false, error: 'Unexpected response' }
@@ -936,15 +1006,29 @@ ipcMain.handle('test-brave-key', async (_, key) => {
   }
 })
 
+// Whisper status
+ipcMain.handle('get-whisper-status', () => ({ available: whisperAvailable }))
+
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 app.whenReady().then(() => {
   initPaths()
   loadSettings()
   apiKey = loadApiKey()
+  console.log('[Covexy] API key loaded: ' + (apiKey ? 'YES' : 'NO'))
   loadProfile()
   loadMemory()
   loadTodayActivity()
   loadTodayChat()
+
+  // Whisper availability check
+  try {
+    const { execSync } = require('child_process')
+    execSync('whisper --version', { timeout: 3000 })
+    whisperAvailable = true
+    console.log('[Covexy] Whisper: available')
+  } catch (e) {
+    console.log('[Covexy] Whisper: not found, audio disabled')
+  }
 
   if (process.platform === 'darwin' && app.dock) {
     const dockIconPath = path.join(__dirname, 'assets', 'covexy-dock.png')

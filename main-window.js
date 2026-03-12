@@ -233,6 +233,8 @@ function loadSettingsUI (s) {
   if (!s) return
   currentSettings = s
 
+  loadWhisperStatus()
+
   const intervalEl = document.getElementById('scan-interval')
   const daysEl     = document.getElementById('memory-days')
 
@@ -292,15 +294,15 @@ async function reTestApiKey () {
   }
 }
 
-// ── Brave Search ──────────────────────────────────────────────────────────────
-async function testBraveKey () {
-  const input  = document.getElementById('brave-api-key')
-  const btn    = document.getElementById('brave-test-btn')
-  const status = document.getElementById('brave-status')
+// ── Tavily Search ─────────────────────────────────────────────────────────────
+async function testTavilyKey () {
+  const input  = document.getElementById('tavily-api-key')
+  const btn    = document.getElementById('tavily-test-btn')
+  const status = document.getElementById('tavily-status')
   const key    = input.value.trim()
 
   if (!key) {
-    status.textContent = 'Enter a Brave API key first'
+    status.textContent = 'Enter a Tavily API key first'
     status.className = 'settings-status err'
     return
   }
@@ -310,7 +312,7 @@ async function testBraveKey () {
   status.textContent = 'Connecting…'
   status.className = 'settings-status loading'
 
-  const result = await window.electronAPI.testBraveKey(key)
+  const result = await window.electronAPI.testTavilyKey(key)
 
   if (result.ok) {
     status.textContent = '✓ Connected — key saved'
@@ -325,30 +327,44 @@ async function testBraveKey () {
   }
 }
 
-async function saveBraveKey () {
-  const input  = document.getElementById('brave-api-key')
-  const btn    = document.getElementById('brave-save-btn')
-  const status = document.getElementById('brave-status')
+async function saveTavilyKeyUI () {
+  const input  = document.getElementById('tavily-api-key')
+  const btn    = document.getElementById('tavily-save-btn')
+  const status = document.getElementById('tavily-status')
   const key    = input.value.trim()
 
   if (!key) {
-    status.textContent = 'Enter a Brave API key first'
+    status.textContent = 'Enter a Tavily API key first'
     status.className = 'settings-status err'
     return
   }
 
   btn.disabled = true
   btn.textContent = 'Saving…'
-  await window.electronAPI.saveBraveKey(key)
+  await window.electronAPI.saveTavilyKey(key)
   status.textContent = '✓ Key saved'
   status.className = 'settings-status ok'
   btn.textContent = '✓ Saved'
   setTimeout(() => { btn.textContent = 'Save'; btn.disabled = false }, 1500)
 }
 
-function toggleBraveKeyVisibility () {
-  const input = document.getElementById('brave-api-key')
-  input.type = input.type === 'password' ? 'text' : 'password'
+async function loadWhisperStatus () {
+  const el = document.getElementById('whisper-status')
+  if (!el) return
+  try {
+    const { available } = await window.electronAPI.getWhisperStatus()
+    if (available) {
+      el.textContent = 'Audio transcription: Active'
+      el.className = 'settings-status ok'
+    } else {
+      el.textContent = 'Audio transcription: Not available — install Whisper to enable'
+      el.className = 'settings-status'
+      el.style.color = 'var(--text-dim)'
+    }
+  } catch {
+    el.textContent = 'Audio transcription: Status unknown'
+    el.className = 'settings-status'
+  }
 }
 
 let clearConfirmPending = false

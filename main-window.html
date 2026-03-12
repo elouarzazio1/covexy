@@ -5,6 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Covexy</title>
 <style>
+* { -webkit-box-sizing: border-box; }
+html {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+body {
+  background: transparent !important;
+  background-color: transparent !important;
+  margin: 0;
+  padding: 0;
+}
+
 /* ── Reset ───────────────────────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -637,13 +649,18 @@ html, body {
         </div>
 
         <div class="settings-section">
-          <div class="settings-section-title">Brave Search (optional)</div>
+          <div class="settings-section-title">Web Search (optional)</div>
           <div class="settings-row">
-            <input type="password" class="settings-input" id="brave-api-key" placeholder="Paste your Brave API key…">
-            <button class="settings-btn" id="brave-test-btn" onclick="testBraveKey()">Test</button>
-            <button class="settings-btn" id="brave-save-btn" onclick="saveBraveKey()">Save</button>
+            <input type="password" class="settings-input" id="tavily-api-key" placeholder="Paste Tavily API key for smart search">
+            <button class="settings-btn" id="tavily-test-btn" onclick="testTavilyKey()">Test</button>
+            <button class="settings-btn" id="tavily-save-btn" onclick="saveTavilyKeyUI()">Save</button>
           </div>
-          <div class="settings-status" id="brave-status"></div>
+          <div class="settings-status" id="tavily-status"></div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Audio Transcription</div>
+          <div class="settings-status" id="whisper-status" style="padding:0;">Checking…</div>
         </div>
 
         <div class="settings-section">

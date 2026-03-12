@@ -17,9 +17,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openProfileEditor: ()     => ipcRenderer.send('open-profile-editor'),
   closeWindow:       ()     => ipcRenderer.send('close-main-window'),
   minimizeWindow:    ()     => ipcRenderer.send('minimize-main-window'),
-  getBraveKeyStatus: ()     => ipcRenderer.invoke('get-brave-key-status'),
-  saveBraveKey:      (key)  => ipcRenderer.invoke('save-brave-key', key),
-  testBraveKey:      (key)  => ipcRenderer.invoke('test-brave-key', key),
+  getTavilyKeyStatus: ()    => ipcRenderer.invoke('get-tavily-key-status'),
+  saveTavilyKey:     (key)  => ipcRenderer.invoke('save-tavily-key', key),
+  testTavilyKey:     (key)  => ipcRenderer.invoke('test-tavily-key', key),
+  getWhisperStatus:  ()     => ipcRenderer.invoke('get-whisper-status'),
 
   // ── Push subscriptions ───────────────────────────────────────
   onInsightsUpdate:  (cb) => ipcRenderer.on('insights-update',   (_, d) => cb(d)),
