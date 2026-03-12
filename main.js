@@ -146,11 +146,27 @@ function pruneMemory (save = true) {
 }
 
 function addMemoryEntry (entry) {
+  // Dedup: skip proactive_insight if last 3 entries share category + >3 words in common
+  if (entry.type === 'proactive_insight' && entry.content) {
+    const last3 = memory.slice(0, 3).filter(m => m.type === 'proactive_insight')
+    const newWords = new Set(entry.content.toLowerCase().split(/\W+/).filter(w => w.length > 3))
+    const isDupe = last3.some(m => {
+      if (m.category !== entry.category) return false
+      const oldWords = m.content.toLowerCase().split(/\W+/).filter(w => w.length > 3)
+      const common = oldWords.filter(w => newWords.has(w))
+      return common.length > 3
+    })
+    if (isDupe) {
+      console.log('[Covexy] 🔁 Dedup: skipping repeat insight (same category + overlapping content)')
+      return false
+    }
+  }
   const item = { id: uid(), timestamp: new Date().toISOString(), ...entry }
   memory.unshift(item)
   if (memory.length > 500) memory = memory.slice(0, 500)
   safeWrite(MEMORY_PATH, { entries: memory })
   push('memory-update', memory.slice(0, 60))
+  return true
 }
 
 function getRecentMemory (n = 10) {
@@ -239,7 +255,11 @@ async function testApiKey (key) {
 }
 
 // ─── Proactive system prompt ──────────────────────────────────────────────────
-const PROACTIVE_SYSTEM = `You are Covexy. You are a silent AI that lives with the user.
+const PROACTIVE_SYSTEM = `RULE ZERO: If your insight describes, references, or is triggered by something the user is actively looking at on their screen right now — respond SKIP. No exceptions.
+
+RULE ONE: Never fire more than one notification about the same topic within 90 minutes. Check {{MEMORY}} — if the last 3 entries contain the same subject, respond SKIP regardless of how important it seems.
+
+You are Covexy. You are a silent AI that lives with the user.
 You are not an assistant they talk to. You are a presence
 that thinks on their behalf — continuously, quietly, and
 always with their life in mind.
@@ -531,7 +551,13 @@ async function analyzeScreen () {
     }
 
     // Always log to memory and activity regardless of confidence
-    addMemoryEntry({ type: 'proactive_insight', content: insight, category, action, prepared, tags: [category.toLowerCase()], confidence })
+    // Returns false if dedup check fires — skip notification in that case
+    const saved = addMemoryEntry({ type: 'proactive_insight', content: insight, category, action, prepared, tags: [category.toLowerCase()], confidence })
+    if (!saved) {
+      console.log('[Covexy] 🔁 Duplicate insight suppressed — skipping notification')
+      isProcessing = false
+      return
+    }
     addActivity(`${category}: ${insight}`, confidence === 'HIGH')
     push('insights-update', getInsights())
 
@@ -923,7 +949,7 @@ app.whenReady().then(() => {
   if (process.platform === 'darwin' && app.dock) {
     const dockIconPath = path.join(__dirname, 'assets', 'covexy-dock.png')
     if (fs.existsSync(dockIconPath)) {
-      app.dock.setIcon(dockIconPath)
+      app.dock.setIcon(nativeImage.createFromPath(dockIconPath))
     } else {
       console.log('[Covexy] Dock icon not found at:', dockIconPath)
     }
