@@ -17,7 +17,7 @@ const APP_VERSION    = '3.0.0'
 const OPENROUTER_HEADERS = { 'HTTP-Referer': 'https://covexy.com', 'X-Title': 'Covexy' }
 
 // ─── Dock ─────────────────────────────────────────────────────────────────────
-if (process.platform === 'darwin' && app.dock) app.dock.hide()
+// dock visible intentionally
 
 // ─── Runtime state ────────────────────────────────────────────────────────────
 let toastWindow     = null
