@@ -20,7 +20,7 @@ const OPENROUTER_HEADERS = { 'HTTP-Referer': 'https://covexy.com', 'X-Title': 'C
 if (process.platform === 'darwin' && app.dock) app.dock.hide()
 
 // ─── Runtime state ────────────────────────────────────────────────────────────
-let overlayWindow   = null
+let toastWindow     = null
 let mainWindow      = null
 let onboardingWindow = null
 let tray            = null
@@ -239,64 +239,122 @@ async function testApiKey (key) {
 }
 
 // ─── Proactive system prompt ──────────────────────────────────────────────────
-const PROACTIVE_SYSTEM = `You are Covexy, an invisible AI that lives on the user's Mac. You observe their screen periodically. You never speak unless you have something genuinely worth interrupting them for.
+const PROACTIVE_SYSTEM = `You are Covexy. You are a silent AI that lives with the user.
+You are not an assistant they talk to. You are a presence
+that thinks on their behalf — continuously, quietly, and
+always with their life in mind.
 
-You are not a notification system. You are not a screen reader. You are a thinking partner who sees patterns across time and connects dots the user is too close to their work to see.
-
-WHO YOU ARE TALKING TO:
+You know this person:
 Name: {{NAME}}
-Role: {{ROLE}}
-Current projects and priorities: {{PROJECTS}}
-What to never interrupt them about: {{IGNORE_LIST}}
+What they do: {{ROLE}}
+What matters to them right now: {{PROJECTS}}
+What you have learned about their life: {{MEMORY}}
+What you have seen them do today: {{TODAY_ACTIVITY}}
+What they never want interrupted: {{IGNORE_LIST}}
 How they want to be spoken to: {{TONE}}
 
-WHAT YOU KNOW ABOUT THEIR DAY:
-{{MEMORY}}
+WHO YOU ARE:
+You are the most attentive presence in this person's life.
+You remember everything. You notice patterns they miss.
+You think ahead so they don't have to.
+You are not here to describe their screen.
+You are not here to state the obvious.
+You are not here to interrupt them with noise.
+You are not here to mention tools, apps, or software
+they are using — they can see their own screen.
+You are here for the moment when something genuinely
+matters to their life — and they would not have
+caught it themselves.
 
-HOW YOU THINK — THREE TIME DIMENSIONS:
+HOW YOU THINK — ALWAYS IN THREE DIMENSIONS:
 
-PAST — what patterns have you noticed across previous scans?
-- Has this same problem, app, or topic appeared multiple times today?
-- Did they start something earlier that appears abandoned or unfinished?
-- Have they been going in circles on something for too long?
-- Is there something they researched earlier that is directly relevant to what they are doing right now?
+THE PAST — what do you know about this person's life?
+- What have they been working on consistently?
+- What patterns have you noticed across days and weeks?
+- What did they start and not finish?
+- What do they care about deeply based on everything observed?
+- What relationships, plans, trips, and commitments
+  have appeared in their life?
 
-PRESENT — what is happening right now that has a non-obvious dimension?
-- Is there a risk, consequence, or implication on screen that is not stated anywhere but that a smart colleague would flag?
-- Is there an email, message, or task visible that looks more urgent than the user may realize?
-- Is there a decision being made right now where they are missing a key piece of information?
+THE PRESENT — what is happening right now?
+- What context does this moment have that they may
+  not be fully aware of?
+- Is there something in the world right now — news,
+  weather, events, market movements — that directly
+  affects what they are doing or planning?
+- Is there a connection between what they are doing
+  now and something from their past they have not made?
 
-FUTURE — what is approaching that they may not be tracking?
-- Is there a deadline, meeting, or commitment visible that is closer than it appears?
-- If they continue on their current path, what is the likely outcome — and is it the one they want?
-- Is there an opportunity window that is closing?
+THE FUTURE — what is coming that they should know about?
+- What is approaching — trips, deadlines, events,
+  commitments — that they should be thinking about now?
+- If they continue on their current path, what is the
+  likely outcome — and is it the one they want?
+- What could you prepare for them now that they
+  will need later?
 
-THE GOLDEN RULE:
-Never describe what is already visible on screen.
-The user has eyes. They can see their screen.
-Your only value is what they CANNOT see themselves: the connection they missed, the risk they have not considered, the pattern only you can see across time, the thing approaching they have not noticed, the one action that changes their next hour.
+WHAT MAKES A PERFECT INSIGHT:
+A perfect insight is one the person could not have
+produced themselves in that moment. It is specific
+to their life — not generic advice anyone could Google.
+It is timely. It is actionable. It sometimes comes
+with something already prepared — a draft, a summary,
+an idea — so they get a gift, not just a notification.
 
-If your insight is just describing the screen — SKIP.
-If you are not highly confident it matters — SKIP.
-If you surfaced something similar in the last 60 minutes — SKIP.
-If it touches anything on their ignore list — SKIP.
+Real examples of what Covexy should sound like:
+For someone traveling next week:
+"Paris has a transit strike Tuesday to Thursday —
+consider arriving Monday or adjusting your schedule."
+For someone who blogs daily and has not written today:
+"You have posted every day this week. Today has no
+post yet — a draft is waiting in chat based on
+what you read this afternoon."
+For someone planning a dinner on WhatsApp:
+"You are hosting friends Saturday. Here are three
+recipes and two topics they would enjoy."
+For a shop owner:
+"Rain all weekend in your area — foot traffic will
+be low. Good moment for an online promotion."
 
-QUALITY GATE — ask yourself before every response:
-1. Does the user already know this? If yes — SKIP.
-2. Is this genuinely useful right now, at this moment? If no — SKIP.
-3. Would a brilliant trusted colleague interrupt them to say this? If no — SKIP.
-4. Is this specific and actionable, not vague and generic? If no — SKIP.
-5. Does this connect something across past, present, or future in a way the user could not have done themselves? If no — SKIP.
+WHEN TO USE WEB SEARCH:
+Before generating any insight involving travel,
+weather, local events, news, market movements,
+a person or company the user mentioned, or anything
+time-sensitive — search the web first.
+Ground every insight in real facts, not assumptions.
 
-Only fire if all five answers point to yes.
+WHEN TO STAY SILENT:
+- You would be describing what they can already see
+- You have nothing that passes the quality gate
+- You surfaced something similar in the last 60 minutes
+- They are clearly in deep focus, watching something,
+  or in a meeting
+- You are not confident the insight is accurate
+- The insight is about any tool, app, or software
+  usage — this is never worth an insight
+Silence is not failure. Silence is respect.
+The value of Covexy is not volume of notifications.
+It is the quality of the rare moments when it speaks.
 
-If nothing qualifies, respond:
-SKIP: [one sentence describing what you see on screen — logged privately, not shown to user]
+QUALITY GATE — all five must be yes before speaking:
+1. Is this specific to this person's life — not
+   something anyone could Google?
+2. Would they genuinely not have thought of this
+   themselves right now?
+3. Is the timing right — is this the moment for
+   this insight?
+4. Is it grounded in real facts — searched or
+   observed — not assumptions?
+5. Does it give them something they can use now?
 
-Otherwise use exactly this format:
-CATEGORY: [EMAIL / TASK / RESEARCH / IDEA / FOCUS / ALERT / WRITING]
-INSIGHT: [one sentence, max 20 words, direct, specific, no "I notice", no "It seems", no screen description, address the user directly]
+If all five yes — speak.
+If any one is no — SKIP.
+
+OUTPUT FORMAT — use exactly this or respond SKIP:
+CATEGORY: [LIFE / WORK / TRAVEL / HEALTH / SOCIAL / CREATIVE / FINANCE / ALERT / IDEA]
+INSIGHT: [one sentence, max 25 words, direct, warm, specific to their life, never mention apps or tools]
 ACTION: [one concrete next step, max 10 words]
+PREPARED: [optional: "Draft waiting in chat" or "Recipe saved" or leave blank]
 CONFIDENCE: HIGH`
 
 // ─── Chat system prompt ───────────────────────────────────────────────────────
@@ -403,14 +461,30 @@ async function analyzeScreen () {
 
   try {
     const base64 = await captureScreen()
+    const activityText = todayActivityText()
+
+    // Proactive web search: fire when activity log mentions time-sensitive topics
+    const PROACTIVE_SEARCH_RE = /\b(travel|trip|flight|hotel|weather|news|market|competitor|launch|event|conference|meeting|deadline|paris|morocco|london|tokyo|dubai|berlin|amsterdam|singapore|sydney|toronto|montreal|cairo|lisbon|madrid|barcelona|rome)\b/i
+    let liveContextPrefix = ''
+    const activityMatch = activityText.match(PROACTIVE_SEARCH_RE)
+    if (activityMatch) {
+      try {
+        const snippet = await webSearch(`${activityMatch[0]} latest news today`)
+        if (snippet && snippet.length > 30) {
+          liveContextPrefix = `[Live web context: ${snippet.slice(0, 400)}]\n\n`
+          console.log('[Covexy] 🌐 Live context added for:', activityMatch[0])
+        }
+      } catch { /* non-critical */ }
+    }
 
     const systemPrompt = PROACTIVE_SYSTEM
-      .replace('{{NAME}}',        profile?.name        || 'the user')
-      .replace('{{ROLE}}',        profile?.profession  || 'not specified')
-      .replace('{{PROJECTS}}',    profile?.projects    || 'not specified')
-      .replace('{{IGNORE_LIST}}', profile?.ignore      || 'nothing specified')
-      .replace('{{TONE}}',        profile?.style       || 'direct and concise')
-      .replace('{{MEMORY}}',      getRecentMemory(10))
+      .replace('{{NAME}}',           profile?.name        || 'the user')
+      .replace('{{ROLE}}',           profile?.profession  || 'not specified')
+      .replace('{{PROJECTS}}',       profile?.projects    || 'not specified')
+      .replace('{{IGNORE_LIST}}',    profile?.ignore      || 'nothing specified')
+      .replace('{{TONE}}',           profile?.style       || 'direct and concise')
+      .replace('{{MEMORY}}',         getRecentMemory(10))
+      .replace('{{TODAY_ACTIVITY}}', activityText)
 
     console.log('[Covexy] 👁  Sending for analysis...')
 
@@ -420,7 +494,7 @@ async function analyzeScreen () {
         role: 'user',
         content: [
           { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64}` } },
-          { type: 'text', text: 'Analyze this screenshot according to your instructions.' }
+          { type: 'text', text: liveContextPrefix + 'Analyze this screenshot according to your instructions.' }
         ]
       }
     ], 60000)
@@ -440,11 +514,13 @@ async function analyzeScreen () {
     const catMatch    = raw.match(/CATEGORY:\s*(.+)/i)
     const insMatch    = raw.match(/INSIGHT:\s*(.+)/i)
     const actMatch    = raw.match(/ACTION:\s*(.+)/i)
+    const prepMatch   = raw.match(/PREPARED:\s*(.+)/i)
     const confMatch   = raw.match(/CONFIDENCE:\s*(HIGH|MEDIUM)/i)
 
-    const category   = (catMatch?.[1] || 'FOCUS').trim().toUpperCase()
+    const category   = (catMatch?.[1] || 'IDEA').trim().toUpperCase()
     const insight    = insMatch?.[1]?.trim()
     const action     = actMatch?.[1]?.trim() || ''
+    const prepared   = prepMatch?.[1]?.trim() || ''
     const confidence = (confMatch?.[1] || 'HIGH').trim().toUpperCase()
 
     if (!insight || insight.length < 5) {
@@ -455,7 +531,7 @@ async function analyzeScreen () {
     }
 
     // Always log to memory and activity regardless of confidence
-    addMemoryEntry({ type: 'proactive_insight', content: insight, category, action, tags: [category.toLowerCase()], confidence })
+    addMemoryEntry({ type: 'proactive_insight', content: insight, category, action, prepared, tags: [category.toLowerCase()], confidence })
     addActivity(`${category}: ${insight}`, confidence === 'HIGH')
     push('insights-update', getInsights())
 
@@ -475,7 +551,7 @@ async function analyzeScreen () {
 
     console.log(`[Covexy] ✅ HIGH confidence [${category}]: ${insight}`)
     lastNotifTime = Date.now()
-    showOverlay({ category, insight, action })
+    showToast({ category, insight, action })
 
   } catch (err) {
     console.log('[Covexy] ❌ Scan error:', err.message)
@@ -598,12 +674,11 @@ function createTray () {
   const trayIconPath = path.join(__dirname, 'assets', 'covexy-icon-tr.png')
   let trayImage
   if (fs.existsSync(trayIconPath)) {
-    trayImage = nativeImage.createFromPath(trayIconPath).resize({ width: 16, height: 16 })
+    trayImage = nativeImage.createFromPath(trayIconPath).resize({ width: 18, height: 18 })
   } else {
-    // Fallback to generated icon if asset not found
-    trayImage = nativeImage.createFromBuffer(makeTrayIcon(22), { scaleFactor: 1 })
+    trayImage = nativeImage.createEmpty()
   }
-  trayImage.setTemplateImage(true)
+  // Do NOT call setTemplateImage — preserve original icon colors
   tray = new Tray(trayImage)
   tray.setToolTip('Covexy – Your silent AI')
   tray.on('click', () => showMainWindow())
@@ -621,27 +696,43 @@ function updateTrayMenu () {
   ]))
 }
 
-// ─── Overlay window ───────────────────────────────────────────────────────────
-function createOverlayWindow () {
-  overlayWindow = new BrowserWindow({
-    width: 300, height: 150, frame: false, transparent: true,
-    alwaysOnTop: true, skipTaskbar: true, resizable: false,
-    focusable: false, hasShadow: false,
-    webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true }
-  })
-  overlayWindow.loadFile('overlay.html')
-  overlayWindow.hide()
-}
-
-function showOverlay ({ category, insight, action }) {
-  if (!overlayWindow || overlayWindow.isDestroyed()) return
-  // Position top-right, 16px from each edge — re-evaluated each show in case resolution changed
+// ─── Toast window ─────────────────────────────────────────────────────────────
+function createToastWindow () {
   const { screen } = require('electron')
   const { width } = screen.getPrimaryDisplay().workAreaSize
-  overlayWindow.setPosition(width - 316, 16)
-  overlayWindow.webContents.send('show-suggestion', { category, insight, action })
-  overlayWindow.show()
-  // Auto-dismiss is handled entirely by overlay.js countdown timer
+
+  toastWindow = new BrowserWindow({
+    width: 300,
+    height: 140,
+    x: width - 316,
+    y: 16,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    focusable: false,
+    skipTaskbar: true,
+    resizable: false,
+    movable: false,
+    hasShadow: false,
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false
+    }
+  })
+
+  toastWindow.loadFile(path.join(__dirname, 'toast.html'))
+  toastWindow.setAlwaysOnTop(true, 'floating')
+  toastWindow.setVisibleOnAllWorkspaces(true)
+  toastWindow.hide()
+}
+
+function showToast ({ category, insight, action }) {
+  if (!toastWindow || toastWindow.isDestroyed()) createToastWindow()
+  const { screen } = require('electron')
+  const { width } = screen.getPrimaryDisplay().workAreaSize
+  toastWindow.setPosition(width - 316, 16)
+  toastWindow.webContents.send('show-toast', { category, insight, action })
+  toastWindow.show()
 }
 
 // ─── Onboarding window ────────────────────────────────────────────────────────
@@ -698,25 +789,25 @@ function pushAllData () {
 }
 
 // ─── IPC ─────────────────────────────────────────────────────────────────────
-ipcMain.on('overlay-action', (_, action) => {
-  if (overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.hide()
+ipcMain.on('toast-dismiss', () => {
+  if (toastWindow && !toastWindow.isDestroyed()) toastWindow.hide()
 })
 
-ipcMain.on('overlay-feedback', (_, { type, insight }) => {
-  if (overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.hide()
-  if (type === 'thumbs-up') {
-    addMemoryEntry({ type: 'feedback_positive', content: `Helpful: ${insight}`, category: 'FEEDBACK', tags: ['feedback', 'positive'] })
+ipcMain.on('toast-feedback', (_, data) => {
+  if (toastWindow && !toastWindow.isDestroyed()) toastWindow.hide()
+  if (data.type === 'helpful') {
+    addMemoryEntry({ type: 'feedback_positive', content: `Helpful: ${data.insight}`, category: 'FEEDBACK', tags: ['feedback', 'positive'] })
     console.log('[Covexy] 👍 Positive feedback saved')
   } else {
-    addMemoryEntry({ type: 'feedback_negative', content: `Not useful — avoid repeating: ${insight}`, category: 'FEEDBACK', tags: ['feedback', 'negative'] })
+    addMemoryEntry({ type: 'feedback_negative', content: `Not useful — avoid repeating: ${data.insight}`, category: 'FEEDBACK', tags: ['feedback', 'negative'] })
     console.log('[Covexy] 👎 Negative feedback saved')
   }
 })
 
-ipcMain.on('overlay-open-chat', (_, { insight }) => {
-  if (overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.hide()
+ipcMain.on('toast-open-chat', (_, data) => {
+  if (toastWindow && !toastWindow.isDestroyed()) toastWindow.hide()
   showMainWindow()
-  setTimeout(() => push('show-chat-context', insight), 350)
+  setTimeout(() => push('show-chat-context', data.insight), 350)
 })
 
 ipcMain.on('close-main-window',    () => mainWindow?.hide())
@@ -831,10 +922,14 @@ app.whenReady().then(() => {
 
   if (process.platform === 'darwin' && app.dock) {
     const dockIconPath = path.join(__dirname, 'assets', 'covexy-dock.png')
-    if (fs.existsSync(dockIconPath)) app.dock.setIcon(dockIconPath)
+    if (fs.existsSync(dockIconPath)) {
+      app.dock.setIcon(dockIconPath)
+    } else {
+      console.log('[Covexy] Dock icon not found at:', dockIconPath)
+    }
   }
 
-  createOverlayWindow()
+  createToastWindow()
   createTray()
 
   // Midnight pruner

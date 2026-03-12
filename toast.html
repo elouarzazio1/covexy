@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: transparent;
+    overflow: hidden;
+    font-family: -apple-system, BlinkMacSystemFont,
+      'SF Pro Text', sans-serif;
+  }
+
+  .toast {
+    width: 300px;
+    background: rgba(16, 16, 18, 0.96);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 14px;
+    padding: 14px 16px 10px 16px;
+    box-shadow: 0 8px 40px rgba(0,0,0,0.5),
+                0 2px 8px rgba(0,0,0,0.3);
+    cursor: default;
+    user-select: none;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .badge {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.10);
+    color: rgba(255,255,255,0.7);
+  }
+
+  .badge.LIFE     { background: rgba(16,185,129,0.2);  color: #10B981; }
+  .badge.WORK     { background: rgba(227,83,53,0.2);   color: #E35335; }
+  .badge.TRAVEL   { background: rgba(59,130,246,0.2);  color: #3B82F6; }
+  .badge.HEALTH   { background: rgba(16,185,129,0.2);  color: #10B981; }
+  .badge.SOCIAL   { background: rgba(245,158,11,0.2);  color: #F59E0B; }
+  .badge.CREATIVE { background: rgba(139,92,246,0.2);  color: #8B5CF6; }
+  .badge.FINANCE  { background: rgba(6,182,212,0.2);   color: #06B6D4; }
+  .badge.ALERT    { background: rgba(239,68,68,0.2);   color: #EF4444; }
+  .badge.IDEA     { background: rgba(245,158,11,0.2);  color: #F59E0B; }
+  /* Legacy categories */
+  .badge.EMAIL    { background: rgba(59,130,246,0.2);  color: #3B82F6; }
+  .badge.TASK     { background: rgba(227,83,53,0.2);   color: #E35335; }
+  .badge.RESEARCH { background: rgba(139,92,246,0.2);  color: #8B5CF6; }
+  .badge.WRITING  { background: rgba(16,185,129,0.2);  color: #10B981; }
+  .badge.FOCUS    { background: rgba(6,182,212,0.2);   color: #06B6D4; }
+
+  .wordmark {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.25);
+    text-transform: uppercase;
+  }
+
+  .insight {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #F0F0F0;
+    margin-bottom: 10px;
+    font-weight: 400;
+  }
+
+  .action-text {
+    font-size: 11px;
+    color: #E35335;
+    margin-bottom: 10px;
+    font-weight: 500;
+  }
+
+  .buttons {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+
+  .btn-feedback {
+    font-size: 11px;
+    color: rgba(255,255,255,0.40);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 0;
+    transition: color 0.15s;
+    font-family: inherit;
+  }
+
+  .btn-feedback:hover { color: rgba(255,255,255,0.75); }
+
+  .btn-chat {
+    font-size: 11px;
+    font-weight: 600;
+    color: #E35335;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 0;
+    margin-left: auto;
+    transition: opacity 0.15s;
+    font-family: inherit;
+  }
+
+  .btn-chat:hover { opacity: 0.75; }
+
+  .progress-bar {
+    height: 2px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 2px;
+    margin-top: 10px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: rgba(255,255,255,0.15);
+    border-radius: 2px;
+    width: 100%;
+    transition: width linear;
+  }
+</style>
+</head>
+<body>
+<div class="toast" id="toast">
+  <div class="header">
+    <span class="badge" id="badge">IDEA</span>
+    <span class="wordmark">COVEXY</span>
+  </div>
+  <div class="insight" id="insight">Loading...</div>
+  <div class="action-text" id="action"></div>
+  <div class="buttons">
+    <button class="btn-feedback" id="btn-helpful">👍 Helpful</button>
+    <button class="btn-feedback" id="btn-not-useful">👎 Not useful</button>
+    <button class="btn-chat" id="btn-chat">Open chat →</button>
+  </div>
+  <div class="progress-bar">
+    <div class="progress-fill" id="progress"></div>
+  </div>
+</div>
+<script>
+  const { ipcRenderer } = require('electron')
+
+  let insightData = {}
+  let dismissTimer = null
+
+  ipcRenderer.on('show-toast', (event, data) => {
+    insightData = data
+
+    const badge = document.getElementById('badge')
+    const cat = (data.category || 'IDEA').toUpperCase()
+    badge.textContent = cat
+    badge.className = 'badge ' + cat
+
+    document.getElementById('insight').textContent = data.insight || ''
+
+    const actionEl = document.getElementById('action')
+    if (data.action) {
+      actionEl.textContent = '→ ' + data.action
+      actionEl.style.display = 'block'
+    } else {
+      actionEl.style.display = 'none'
+    }
+
+    // Start 10s countdown progress bar
+    const progress = document.getElementById('progress')
+    progress.style.transition = 'none'
+    progress.style.width = '100%'
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        progress.style.transition = 'width 10s linear'
+        progress.style.width = '0%'
+      })
+    })
+
+    clearTimeout(dismissTimer)
+    dismissTimer = setTimeout(() => dismiss(), 10000)
+  })
+
+  function dismiss () {
+    clearTimeout(dismissTimer)
+    ipcRenderer.send('toast-dismiss')
+  }
+
+  document.getElementById('btn-helpful').addEventListener('click', () => {
+    ipcRenderer.send('toast-feedback', { type: 'helpful', insight: insightData.insight })
+    dismiss()
+  })
+
+  document.getElementById('btn-not-useful').addEventListener('click', () => {
+    ipcRenderer.send('toast-feedback', { type: 'not-useful', insight: insightData.insight })
+    dismiss()
+  })
+
+  document.getElementById('btn-chat').addEventListener('click', () => {
+    ipcRenderer.send('toast-open-chat', { insight: insightData.insight })
+    dismiss()
+  })
+</script>
+</body>
+</html>

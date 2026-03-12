@@ -20,12 +20,20 @@
   --text:          rgba(255, 255, 255, 0.92);
   --text-dim:      rgba(255, 255, 255, 0.42);
   --text-faint:    rgba(255, 255, 255, 0.20);
-  /* Category colors */
+  /* Category colors — new */
+  --c-life:     #10B981;  --c-life-bg:     rgba(16,185,129,0.15);
+  --c-work:     #E35335;  --c-work-bg:     rgba(227,83,53,0.15);
+  --c-travel:   #3B82F6;  --c-travel-bg:   rgba(59,130,246,0.15);
+  --c-health:   #10B981;  --c-health-bg:   rgba(16,185,129,0.15);
+  --c-social:   #F59E0B;  --c-social-bg:   rgba(245,158,11,0.15);
+  --c-creative: #8B5CF6;  --c-creative-bg: rgba(139,92,246,0.15);
+  --c-finance:  #06B6D4;  --c-finance-bg:  rgba(6,182,212,0.15);
+  --c-alert:    #EF4444;  --c-alert-bg:    rgba(239,68,68,0.15);
+  --c-idea:     #F59E0B;  --c-idea-bg:     rgba(245,158,11,0.15);
+  /* Legacy category colors */
   --c-email:    #3B82F6;  --c-email-bg:    rgba(59,130,246,0.15);
   --c-task:     #E35335;  --c-task-bg:     rgba(227,83,53,0.15);
   --c-research: #8B5CF6;  --c-research-bg: rgba(139,92,246,0.15);
-  --c-alert:    #EF4444;  --c-alert-bg:    rgba(239,68,68,0.15);
-  --c-idea:     #F59E0B;  --c-idea-bg:     rgba(245,158,11,0.15);
   --c-focus:    #06B6D4;  --c-focus-bg:    rgba(6,182,212,0.15);
   --c-writing:  #10B981;  --c-writing-bg:  rgba(16,185,129,0.15);
   --font: -apple-system, 'SF Pro Text', BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
@@ -45,7 +53,7 @@ html, body {
   display: flex;
   width: 100%;
   height: 100%;
-  background: transparent;
+  background: rgba(10, 10, 12, 0.95);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 0 0 0.5px rgba(0,0,0,0.5), 0 28px 64px rgba(0,0,0,0.55);
@@ -56,10 +64,10 @@ html, body {
 .sidebar {
   width: 196px;
   flex-shrink: 0;
-  background: rgba(0, 0, 0, 0.35);
-  backdrop-filter: blur(24px) saturate(160%);
-  -webkit-backdrop-filter: blur(24px) saturate(160%);
-  border-right: 1px solid var(--border);
+  background: rgba(10, 10, 12, 0.92);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border-right: 1px solid rgba(255,255,255,0.07);
   display: flex;
   flex-direction: column;
   padding-top: 44px;
@@ -163,9 +171,9 @@ html, body {
   flex-direction: column;
   padding-top: 44px;
   overflow: hidden;
-  background: rgba(0, 0, 0, 0.18);
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  background: rgba(14, 14, 16, 0.88);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
 }
 
 .panel { display: none; flex: 1; flex-direction: column; overflow: hidden; }
@@ -231,12 +239,21 @@ html, body {
   font-size: 14px;
   flex-shrink: 0;
 }
+/* New categories */
+.insight-icon.life     { background: var(--c-life-bg);     color: var(--c-life);     }
+.insight-icon.work     { background: var(--c-work-bg);     color: var(--c-work);     }
+.insight-icon.travel   { background: var(--c-travel-bg);   color: var(--c-travel);   }
+.insight-icon.health   { background: var(--c-health-bg);   color: var(--c-health);   }
+.insight-icon.social   { background: var(--c-social-bg);   color: var(--c-social);   }
+.insight-icon.creative { background: var(--c-creative-bg); color: var(--c-creative); }
+.insight-icon.finance  { background: var(--c-finance-bg);  color: var(--c-finance);  }
+.insight-icon.alert    { background: var(--c-alert-bg);    color: var(--c-alert);    }
+.insight-icon.idea     { background: var(--c-idea-bg);     color: var(--c-idea);     }
+/* Legacy categories */
 .insight-icon.email    { background: var(--c-email-bg);    color: var(--c-email);    }
 .insight-icon.task     { background: var(--c-task-bg);     color: var(--c-task);     }
 .insight-icon.research { background: var(--c-research-bg); color: var(--c-research); }
-.insight-icon.idea     { background: var(--c-idea-bg);     color: var(--c-idea);     }
 .insight-icon.focus    { background: var(--c-focus-bg);    color: var(--c-focus);    }
-.insight-icon.alert    { background: var(--c-alert-bg);    color: var(--c-alert);    }
 .insight-icon.writing  { background: var(--c-writing-bg);  color: var(--c-writing);  }
 .insight-icon.other    { background: var(--surface);       color: var(--text-dim);   }
 

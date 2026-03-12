@@ -8,12 +8,21 @@ let currentSettings = {}
 
 // ── Category config ───────────────────────────────────────────────────────────
 const CAT = {
+  // New categories
+  life:     { icon: '◎', cls: 'life'     },
+  work:     { icon: '◈', cls: 'work'     },
+  travel:   { icon: '✈', cls: 'travel'   },
+  health:   { icon: '♡', cls: 'health'   },
+  social:   { icon: '◇', cls: 'social'   },
+  creative: { icon: '✦', cls: 'creative' },
+  finance:  { icon: '◐', cls: 'finance'  },
+  alert:    { icon: '⚠', cls: 'alert'    },
+  idea:     { icon: '◈', cls: 'idea'     },
+  // Legacy categories
   email:    { icon: '✉', cls: 'email'    },
   task:     { icon: '✓', cls: 'task'     },
   research: { icon: '⊞', cls: 'research' },
-  idea:     { icon: '◈', cls: 'idea'     },
   focus:    { icon: '◉', cls: 'focus'    },
-  alert:    { icon: '⚠', cls: 'alert'    },
   writing:  { icon: '✍', cls: 'writing'  },
 }
 
