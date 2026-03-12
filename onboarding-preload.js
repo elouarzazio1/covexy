@@ -1,4 +1,4 @@
-const { contextBridge, ipcRenderer } = require('electron')
+const { contextBridge, ipcRenderer, shell } = require('electron')
 
 contextBridge.exposeInMainWorld('covexy', {
   testApiKey:     key  => ipcRenderer.invoke('test-api-key', key),
@@ -8,5 +8,6 @@ contextBridge.exposeInMainWorld('covexy', {
   getProfile:     ()   => ipcRenderer.invoke('get-edit-profile'),
   done:           ()   => ipcRenderer.send('onboarding-complete'),
   profileEditDone:()   => ipcRenderer.send('profile-edit-done'),
-  isEditMode:     ()   => new URLSearchParams(window.location.search).get('edit') === '1'
+  isEditMode:     ()   => new URLSearchParams(window.location.search).get('edit') === '1',
+  openExternal:   url  => shell.openExternal(url)
 })

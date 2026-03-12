@@ -105,6 +105,10 @@ textarea{min-height:88px;line-height:1.5}
 .welcome-wordmark{font-size:34px;font-weight:800;letter-spacing:.12em;color:var(--text);margin-bottom:22px}
 .welcome-features{display:flex;flex-direction:column;gap:12px;width:100%;margin:18px 0 34px}
 .welcome-feature{font-size:13px;color:var(--dim);text-align:center;line-height:1.5}
+
+/* External links */
+.ext-link{color:#E35335;font-size:12px;font-weight:500;cursor:pointer;text-decoration:none;-webkit-app-region:no-drag;display:inline-block;margin-bottom:16px}
+.ext-link:hover{text-decoration:underline}
 </style>
 </head>
 <body>
@@ -136,7 +140,8 @@ textarea{min-height:88px;line-height:1.5}
     <!-- Step 1: API Key -->
     <div class="step" id="step-api">
       <div class="step-title">Connect your AI</div>
-      <div class="step-sub">Covexy runs on a powerful AI engine. Paste your API key below, stored securely on your Mac and never leaving your device.</div>
+      <div class="step-sub">Covexy uses OpenRouter to power its intelligence. Get your free key at openrouter.ai, then paste it below. It stays on your device and is never shared.</div>
+      <a class="ext-link" onclick="window.covexy.openExternal('https://openrouter.ai');return false;" href="#">Get your free key at openrouter.ai ↗</a>
       <div class="pw-wrap" style="margin-bottom:10px">
         <input type="password" id="api-input" placeholder="Paste your API key…" autocomplete="off" oninput="onApiInput()">
         <button class="pw-toggle" onclick="togglePw()">👁</button>
@@ -149,8 +154,9 @@ textarea{min-height:88px;line-height:1.5}
 
     <!-- Step 1.5: Tavily (optional) -->
     <div class="step" id="step-tavily">
-      <div class="step-title">Web Search (Optional)</div>
-      <div class="step-sub">Tavily enables smart web search for better insights. Free at tavily.com</div>
+      <div class="step-title">Enable web search</div>
+      <div class="step-sub">Covexy uses Tavily to search the web for you automatically. Get your free key at tavily.com, then paste it below. Free plan includes 1000 searches per month.</div>
+      <a class="ext-link" onclick="window.covexy.openExternal('https://tavily.com');return false;" href="#">Get your free key at tavily.com ↗</a>
       <div class="pw-wrap" style="margin-bottom:10px">
         <input type="password" id="tavily-input" placeholder="Paste Tavily API key (optional)" autocomplete="off">
         <button class="pw-toggle" onclick="toggleTavilyPw()">👁</button>
