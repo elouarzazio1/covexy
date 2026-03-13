@@ -14,12 +14,12 @@ const PROFILE_STEPS = [
   {
     title: 'What do you do professionally?',
     sub: 'This helps Covexy understand your context and priorities.',
-    key: 'profession', type: 'text', placeholder: 'e.g. entrepreneur, founder of mention.ma and Inference Watch'
+    key: 'profession', type: 'text', placeholder: 'e.g. Founder, Designer, Engineer'
   },
   {
     title: 'What are your current main projects or priorities?',
     sub: 'Covexy will watch for anything related to these.',
-    key: 'projects', type: 'textarea', placeholder: 'Describe your active projects, goals, or areas of focus…'
+    key: 'projects', type: 'textarea', placeholder: 'Describe your work, goals, or what you are focused on right now...'
   },
   {
     title: 'What should I always watch for?',
@@ -29,7 +29,7 @@ const PROFILE_STEPS = [
   {
     title: 'Focus apps',
     sub: 'Covexy stays quiet while you use these apps. It still watches context, but holds notifications until you switch away.',
-    key: 'ignore', type: 'textarea', placeholder: 'e.g. gaming, personal social media browsing, Netflix'
+    key: 'ignore', type: 'textarea', placeholder: 'e.g. Netflix, YouTube, Spotify'
   },
   {
     title: 'How should I communicate with you?',
@@ -152,11 +152,11 @@ function showProfileStep (idx) {
   } else if (s.type === 'watchlist') {
     const existing = Array.isArray(profileData.watchlist) ? profileData.watchlist : []
     const placeholders = [
-      'e.g. GEO search trends',
-      'e.g. mention.ma competitors',
+      'e.g. industry trends',
+      'e.g. competitor news',
       'e.g. AI model pricing',
-      'e.g. OpenRouter updates',
-      'e.g. your industry keyword'
+      'e.g. your main tool updates',
+      'e.g. your market keyword'
     ]
     area.innerHTML = `<div class="watchlist-inputs">${[0,1,2,3,4].map(i => `
       <div class="watchlist-item">
@@ -186,6 +186,12 @@ function showProfileStep (idx) {
   // Back/Next labels
   document.getElementById('back-btn').style.display = (idx === 0 && !isEditMode) ? 'none' : 'flex'
   document.getElementById('next-btn').textContent = idx === PROFILE_STEPS.length - 1 ? (isEditMode ? 'Save changes' : 'Finish setup') : 'Next'
+
+  // Skip link — show on non-essential steps (profession=1, watchlist=3, focus apps=4)
+  const skipLink = document.getElementById('skip-link')
+  if (skipLink) {
+    skipLink.style.display = [1, 3, 4].includes(idx) ? 'block' : 'none'
+  }
 }
 
 function selectStyle (val, el) {
@@ -232,6 +238,27 @@ async function profileNext () {
 }
 
 function esc (s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') }
+
+// ── Safe external URL opener ───────────────────────────────────────────────────
+function openUrl (url) {
+  console.log('[covexy] openExternal available:', typeof window.covexy?.openExternal)
+  if (window.covexy && typeof window.covexy.openExternal === 'function') {
+    window.covexy.openExternal(url)
+  }
+}
+
+// ── Skip profile step ─────────────────────────────────────────────────────────
+function skipProfileStep () {
+  const s = PROFILE_STEPS[profileStep]
+  if (s.type === 'watchlist') {
+    profileData.watchlist = []
+  } else {
+    profileData[s.key] = ''
+  }
+  if (profileStep < PROFILE_STEPS.length - 1) {
+    showProfileStep(profileStep + 1)
+  }
+}
 
 // Keyboard nav
 document.addEventListener('keydown', e => {

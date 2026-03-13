@@ -7,8 +7,8 @@
 :root{
   --accent:#C44B2B;
   --bg:#141414;--surface:rgba(255,255,255,.05);--border:rgba(255,255,255,.08);
-  --border-lit:rgba(255,255,255,.12);--text:#F0F0F0;--dim:#6B6B6B;
-  --faint:#4A4A4A;--red:rgba(255,69,58,.85);
+  --border-lit:rgba(255,255,255,.12);--text:#F0F0F0;--dim:#999999;
+  --faint:#666666;--red:rgba(255,69,58,.85);
   --font:-apple-system,'SF Pro Display',BlinkMacSystemFont,sans-serif;
 }
 html,body{width:100%;height:100%;font-family:var(--font);background:transparent;-webkit-font-smoothing:antialiased;user-select:none;overflow:hidden}
@@ -82,7 +82,7 @@ textarea{min-height:88px;line-height:1.5}
 .style-options{display:flex;flex-direction:column;gap:9px;width:100%}
 .style-btn{
   padding:13px 18px;border-radius:11px;border:1px solid rgba(255,255,255,.10);
-  background:var(--surface);color:#6B6B6B;font-size:13px;font-weight:500;
+  background:var(--surface);color:#999999;font-size:13px;font-weight:500;
   cursor:pointer;transition:all .15s;text-align:left;font-family:var(--font);
   -webkit-app-region:no-drag;
 }
@@ -113,7 +113,15 @@ textarea{min-height:88px;line-height:1.5}
 .watchlist-inputs{display:flex;flex-direction:column;gap:7px;width:100%;max-height:290px;overflow-y:auto;scrollbar-width:none}
 .watchlist-inputs::-webkit-scrollbar{display:none}
 .watchlist-item{display:flex;flex-direction:column;gap:3px}
-.watchlist-label{font-size:10px;font-weight:700;color:#4A4A4A;letter-spacing:.06em;text-transform:uppercase}
+.watchlist-label{font-size:10px;font-weight:600;color:#777777;letter-spacing:.06em;text-transform:uppercase}
+
+/* Skip link */
+.skip-link{
+  display:none;font-size:12px;color:#666666;cursor:pointer;
+  margin-top:14px;text-align:center;-webkit-app-region:no-drag;
+  transition:color .12s;
+}
+.skip-link:hover{color:#999999}
 </style>
 </head>
 <body>
@@ -146,7 +154,7 @@ textarea{min-height:88px;line-height:1.5}
     <div class="step" id="step-api">
       <div class="step-title">Connect your AI</div>
       <div class="step-sub">Covexy uses OpenRouter to power its intelligence. Get your free key at openrouter.ai, then paste it below. It stays on your device and is never shared.</div>
-      <a class="ext-link" href="javascript:void(0)" onclick="window.covexy.openExternal('https://openrouter.ai')">Get your free key at openrouter.ai ↗</a>
+      <a class="ext-link" href="javascript:void(0)" onclick="openUrl('https://openrouter.ai')">Get your free key at openrouter.ai ↗</a>
       <div class="pw-wrap" style="margin-bottom:10px">
         <input type="password" id="api-input" placeholder="Paste your API key…" autocomplete="off" oninput="onApiInput()">
         <button class="pw-toggle" onclick="togglePw()">👁</button>
@@ -161,7 +169,7 @@ textarea{min-height:88px;line-height:1.5}
     <div class="step" id="step-tavily">
       <div class="step-title">Enable web search</div>
       <div class="step-sub">Covexy uses Tavily to search the web for you automatically. Get your free key at tavily.com, then paste it below. Free plan includes 1000 searches per month.</div>
-      <a class="ext-link" href="javascript:void(0)" onclick="window.covexy.openExternal('https://tavily.com')">Get your free key at tavily.com ↗</a>
+      <a class="ext-link" href="javascript:void(0)" onclick="openUrl('https://tavily.com')">Get your free key at tavily.com ↗</a>
       <div class="pw-wrap" style="margin-bottom:10px">
         <input type="password" id="tavily-input" placeholder="Paste Tavily API key (optional)" autocomplete="off">
         <button class="pw-toggle" onclick="toggleTavilyPw()">👁</button>
@@ -182,6 +190,7 @@ textarea{min-height:88px;line-height:1.5}
         <button class="btn btn-secondary" id="back-btn" onclick="profileBack()">Back</button>
         <button class="btn btn-primary"   id="next-btn" onclick="profileNext()">Next</button>
       </div>
+      <span id="skip-link" class="skip-link" onclick="skipProfileStep()">Skip for now, I'll set this up later</span>
     </div>
 
   </div>

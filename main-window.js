@@ -144,7 +144,7 @@ function renderInsights () {
     const downClass = item.rating === -1 ? 'active' : (item.rating === 1  ? 'faded' : '')
 
     const watchlistLabelHtml = item.watchlistTopic
-      ? `<div style="font-size:10px;color:#4A4A4A;font-weight:500;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">${esc(item.watchlistTopic)}</div>`
+      ? `<div style="font-size:10px;color:#777777;font-weight:500;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">${esc(item.watchlistTopic)}</div>`
       : ''
 
     return `

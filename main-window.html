@@ -30,8 +30,8 @@ body {
   --surface:       rgba(255, 255, 255, 0.04);
   --surface-hover: rgba(255, 255, 255, 0.05);
   --text:          #F0F0F0;
-  --text-dim:      #6B6B6B;
-  --text-faint:    #4A4A4A;
+  --text-dim:      #999999;
+  --text-faint:    #666666;
   /* Category colors */
   --c-life:     #10B981;  --c-life-bg:     rgba(16,185,129,0.12);
   --c-work:     #8B8B8B;  --c-work-bg:     rgba(139,139,139,0.12);
@@ -168,7 +168,7 @@ html, body {
 .sidebar-footer {
   padding: 12px 18px;
   font-size: 10px;
-  color: #3A3A3A;
+  color: #555555;
   letter-spacing: 0.06em;
   border-top: 1px solid rgba(255,255,255,0.06);
   -webkit-app-region: no-drag;
@@ -289,7 +289,7 @@ html, body {
   transition: color 0.12s;
 }
 .insight-card:hover .insight-action-line { color: #FFFFFF; }
-.insight-time { font-size: 11px; color: #4A4A4A; }
+.insight-time { font-size: 11px; color: #666666; }
 
 .insight-chevron {
   font-size: 11px; color: #555555;
@@ -307,7 +307,7 @@ html, body {
 .insight-card.expanded .insight-expanded-body { max-height: 700px; }
 
 .insight-why-now {
-  font-size: 12px; color: #6B6B6B; line-height: 1.5;
+  font-size: 12px; color: #999999; line-height: 1.5;
   margin-top: 12px; margin-left: 38px;
 }
 .insight-divider {
@@ -316,7 +316,7 @@ html, body {
 }
 .insight-sources-title {
   font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
-  text-transform: uppercase; color: #4A4A4A;
+  text-transform: uppercase; color: #666666;
   margin: 0 0 8px 38px;
 }
 .insight-sources-list {
@@ -334,10 +334,10 @@ html, body {
 }
 .insight-source-link:hover { color: #FFFFFF; }
 .insight-source-desc {
-  font-size: 11px; color: #4A4A4A; line-height: 1.4; margin-top: 2px;
+  font-size: 11px; color: #666666; line-height: 1.4; margin-top: 2px;
 }
 .insight-no-sources {
-  font-size: 12px; color: #4A4A4A; font-style: italic;
+  font-size: 12px; color: #666666; font-style: italic;
   margin: 0 0 8px 38px;
 }
 .insight-show-less {
@@ -357,11 +357,11 @@ html, body {
   font-size: 12px; padding: 2px 6px;
   transition: color 0.12s;
   -webkit-app-region: no-drag; line-height: 1; font-family: var(--font);
-  color: #3A3A3A;
+  color: #666666;
 }
-.fb-btn:hover  { color: #888888; }
+.fb-btn:hover  { color: #AAAAAA; }
 .fb-btn.active { color: #F0F0F0; }
-.fb-btn.faded  { color: #222222; }
+.fb-btn.faded  { color: #555555; }
 
 /* ── Memory ──────────────────────────────────────────────── */
 .day-group { margin-bottom: 20px; }
@@ -401,7 +401,7 @@ html, body {
   font-size: 10px; font-weight: 700; flex-shrink: 0;
 }
 .msg.assistant .msg-avatar { background: rgba(255,255,255,0.06); color: #888888; }
-.msg.user      .msg-avatar { background: rgba(255,255,255,0.08); color: #6B6B6B; }
+.msg.user      .msg-avatar { background: rgba(255,255,255,0.08); color: #888888; }
 
 .msg-bubble {
   max-width: 72%;
@@ -503,7 +503,7 @@ html, body {
   font-weight: 600;
   letter-spacing: 1.5px;
   text-transform: uppercase;
-  color: #444444;
+  color: #777777;
   margin-bottom: 9px;
 }
 
@@ -524,7 +524,7 @@ html, body {
   -webkit-app-region: no-drag;
   user-select: text;
 }
-.settings-input::placeholder { color: #4A4A4A; }
+.settings-input::placeholder { color: #666666; }
 .settings-input:focus { border-color: rgba(255,255,255,0.30); }
 
 .settings-select {
