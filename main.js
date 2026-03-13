@@ -1067,12 +1067,8 @@ function startScanner () {
     console.log('[Covexy] 🧠 Analyst armed — runs every 30 minutes')
   }
 
-  // Watchlist scanner — independent 2-hour interval
-  if (!watchlistTimer) {
-    watchlistTimer = setInterval(runWatchlistScan, 2 * 60 * 60 * 1000)
-    setTimeout(runWatchlistScan, 60 * 1000) // first run 60s after startup
-    console.log('[Covexy] 🔭 Watchlist scanner armed — runs every 2h')
-  }
+  // Watchlist scanner disabled — too noisy, removed from v1
+  console.log('[Covexy] 🔭 Watchlist scanner disabled in this version')
 }
 
 function restartScanner () {

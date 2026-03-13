@@ -1,6 +1,6 @@
 'use strict'
 
-const RELEVANCE_THRESHOLD = 8
+const RELEVANCE_THRESHOLD = 9
 
 const SCORE_SYSTEM = `You are a relevance judge for a proactive AI assistant called Covexy. Covexy watches a user's screen and generates insights. Your job is to score each insight on a scale of 1 to 10 based on how genuinely useful it is RIGHT NOW for this specific person.
 
@@ -25,7 +25,10 @@ REWARD (score 8-10) if the insight:
 - Contains information the user likely does NOT already know
 - Has a clear specific actionable next step
 - Is time-sensitive or would change what the user does in the next 10 minutes
-- Connects to mention.ma, inferencewatch, GEO, AI market news, or their active projects
+- Connects something the user actually did today with external information they have not seen
+- Is specific enough that it could only apply to THIS person, not any founder
+- Would make the user stop what they are doing and act on it immediately
+- Generic AI news, GEO definitions, or funding advice scores 1 automatically regardless of relevance
 
 Respond with ONLY a JSON object in this exact format, nothing else:
 {"score": 7, "reason": "One sentence explaining the score."}`

@@ -22,11 +22,6 @@ const PROFILE_STEPS = [
     key: 'projects', type: 'textarea', placeholder: 'Describe your work, goals, or what you are focused on right now...'
   },
   {
-    title: 'What should I always watch for?',
-    sub: 'Covexy will search these topics every few hours, even when you are away.',
-    key: 'watchlist', type: 'watchlist'
-  },
-  {
     title: 'Focus apps',
     sub: 'Covexy stays quiet while you use these apps. It still watches context, but holds notifications until you switch away.',
     key: 'ignore', type: 'textarea', placeholder: 'e.g. Netflix, YouTube, Spotify'
@@ -158,21 +153,6 @@ function showProfileStep (idx) {
   } else if (s.type === 'textarea') {
     area.innerHTML = `<textarea id="profile-field" placeholder="${s.placeholder}">${esc(profileData[s.key] || '')}</textarea>`
     setTimeout(() => document.getElementById('profile-field')?.focus(), 50)
-  } else if (s.type === 'watchlist') {
-    const existing = Array.isArray(profileData.watchlist) ? profileData.watchlist : []
-    const placeholders = [
-      'e.g. industry trends',
-      'e.g. competitor news',
-      'e.g. AI model pricing',
-      'e.g. your main tool updates',
-      'e.g. your market keyword'
-    ]
-    area.innerHTML = `<div class="watchlist-inputs">${[0,1,2,3,4].map(i => `
-      <div class="watchlist-item">
-        <div class="watchlist-label">Topic ${i + 1}</div>
-        <input type="text" id="wl-${i}" placeholder="${placeholders[i]}" value="${esc(existing[i] || '')}">
-      </div>`).join('')}</div>`
-    setTimeout(() => document.getElementById('wl-0')?.focus(), 50)
   } else if (s.type === 'style') {
     selectedStyle = profileData.style || null
     area.innerHTML = `
@@ -196,10 +176,10 @@ function showProfileStep (idx) {
   document.getElementById('back-btn').style.display = (idx === 0 && !isEditMode) ? 'none' : 'flex'
   document.getElementById('next-btn').textContent = idx === PROFILE_STEPS.length - 1 ? (isEditMode ? 'Save changes' : 'Finish setup') : 'Next'
 
-  // Skip link — show on non-essential steps (profession=1, watchlist=3, focus apps=4)
+  // Skip link — show on non-essential steps (profession=1, focus apps=3)
   const skipLink = document.getElementById('skip-link')
   if (skipLink) {
-    skipLink.style.display = [1, 3, 4].includes(idx) ? 'block' : 'none'
+    skipLink.style.display = [1, 3].includes(idx) ? 'block' : 'none'
   }
 }
 
@@ -224,10 +204,6 @@ async function profileNext () {
   // Save current step
   if (s.type === 'style') {
     profileData.style = selectedStyle || 'direct'
-  } else if (s.type === 'watchlist') {
-    profileData.watchlist = [0,1,2,3,4]
-      .map(i => (document.getElementById(`wl-${i}`)?.value || '').trim())
-      .filter(Boolean)
   } else {
     const field = document.getElementById('profile-field')
     profileData[s.key] = field?.value?.trim() || ''
@@ -259,11 +235,7 @@ function openUrl (url) {
 // ── Skip profile step ─────────────────────────────────────────────────────────
 function skipProfileStep () {
   const s = PROFILE_STEPS[profileStep]
-  if (s.type === 'watchlist') {
-    profileData.watchlist = []
-  } else {
-    profileData[s.key] = ''
-  }
+  profileData[s.key] = ''
   if (profileStep < PROFILE_STEPS.length - 1) {
     showProfileStep(profileStep + 1)
   }
