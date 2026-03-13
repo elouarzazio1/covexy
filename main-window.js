@@ -121,7 +121,7 @@ function renderInsights () {
     const c      = catFor(item)
 
     const actionHtml = item.action
-      ? `<div style="color:#E35335;font-size:12px;font-weight:500;margin-top:4px;">→ ${esc(item.action)}</div>`
+      ? `<div class="insight-action-line">→ ${esc(item.action)}</div>`
       : ''
 
     const whyNowHtml = item.whyNow
@@ -135,7 +135,7 @@ function renderInsights () {
           <a class="insight-source-link" data-href="${esc(s.url || '')}" onclick="openSource(this);return false;" href="#">${esc(s.title || s.url || 'Source')}</a>
           ${s.description ? `<div class="insight-source-desc">${esc(s.description)}</div>` : ''}
         </div>`).join('')
-      sourcesHtml = `<div class="insight-sources-title">Sources</div>${sourceItems}`
+      sourcesHtml = `<div class="insight-sources-title">Sources</div><div class="insight-sources-list">${sourceItems}</div>`
     } else {
       sourcesHtml = `<div class="insight-no-sources">No sources found</div>`
     }
@@ -144,7 +144,7 @@ function renderInsights () {
     const downClass = item.rating === -1 ? 'active' : (item.rating === 1  ? 'faded' : '')
 
     const watchlistLabelHtml = item.watchlistTopic
-      ? `<div style="font-size:10px;color:var(--text-faint);font-weight:600;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:3px;">Watchlist: ${esc(item.watchlistTopic)}</div>`
+      ? `<div style="display:inline-block;font-size:10px;color:#888888;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;background:#3A3A3A;border-radius:4px;padding:1px 6px;margin-bottom:5px;">Watchlist: ${esc(item.watchlistTopic)}</div>`
       : ''
 
     return `
@@ -353,7 +353,7 @@ function loadSettingsUI (s) {
     if (!el) return
     if (count >= limit) {
       el.textContent = 'Limit reached, using fallback search'
-      el.style.color = '#E35335'
+      el.style.color = '#EF4444'
     } else {
       el.textContent = `Tavily searches this month: ${count} / ${limit}`
       el.style.color = ''
