@@ -38,7 +38,8 @@ if (!gotTheLock) {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const MODEL          = 'google/gemini-3-flash-preview'
+const MODEL          = 'google/gemini-2.0-flash-001'
+const ANALYST_MODEL  = 'deepseek/deepseek-r1'
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const ANALYST_INTERVAL  = 2 * 60 * 60 * 1000   // Analyst runs every 2 hours
 const OBSERVER_MAXLOG   = 200               // Max activity entries kept in memory
@@ -959,10 +960,16 @@ async function runAnalyst () {
       .replace('{{RECENT_MEMORY}}',   getRecentMemory(15))
       .replace('{{EXTERNAL_CONTEXT}}', externalContext)
 
-    const raw = await aiChat([
-      { role: 'system', content: systemPrompt },
-      { role: 'user',   content: 'Analyze everything and surface the single most valuable insight right now. If nothing is worthy, respond SKIP.' }
-    ], 45000)
+    const raw = await axios.post(OPENROUTER_URL, {
+      model: ANALYST_MODEL,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: 'Analyze everything and surface the single most valuable insight right now. If nothing is worthy, respond SKIP.' }
+      ]
+    }, {
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', ...OPENROUTER_HEADERS },
+      timeout: 60000
+    }).then(r => r.data.choices?.[0]?.message?.content?.trim() || '')
 
     console.log('[Covexy] 🧠 Analyst response:', raw.slice(0, 150))
 
