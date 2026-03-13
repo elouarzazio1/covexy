@@ -9,6 +9,7 @@ const axios  = require('axios')
 const fs     = require('fs')
 const zlib   = require('zlib')
 const screenshot = require('screenshot-desktop') // fallback capturer
+const { scoreInsight, shouldShowInsight } = require('./intelligence')
 
 // ─── Crash protection ─────────────────────────────────────────────────────────
 const logFile = path.join(app.getPath('userData'), 'covexy-error.log')
@@ -675,9 +676,16 @@ async function analyzeScreen () {
       } catch { /* non-critical */ }
     }
 
-    // Always log to memory and activity regardless of confidence
-    // Returns false if dedup check fires — skip notification in that case
-    const saved = addMemoryEntry({ type: 'proactive_insight', content: insight, category, action, prepared, whyNow, search: searchTerms, sources: searchSources, tags: [category.toLowerCase()], confidence })
+    // Relevance scoring — only show if score is 8 or above
+    const { score, reason } = await scoreInsight({ insight, whyNow, action, category }, profile, aiChat)
+    if (!shouldShowInsight(score)) {
+      console.log(`[Covexy] 🚫 Insight scored ${score}/10 — below threshold, logging silently`)
+      addMemoryEntry({ type: 'proactive_insight', content: insight, category, action, prepared, whyNow, search: searchTerms, sources: searchSources, tags: [category.toLowerCase()], confidence, score, scoreReason: reason })
+      isProcessing = false
+      return
+    }
+
+    const saved = addMemoryEntry({ type: 'proactive_insight', content: insight, category, action, prepared, whyNow, search: searchTerms, sources: searchSources, tags: [category.toLowerCase()], confidence, score, scoreReason: reason })
     if (!saved) {
       console.log('[Covexy] 🔁 Duplicate insight suppressed — skipping notification')
       isProcessing = false
