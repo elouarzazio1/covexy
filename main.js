@@ -879,6 +879,152 @@ function getInsights () {
   return memory.filter(m => m.type === 'proactive_insight').slice(0, 60)
 }
 
+// ─── Analyst Engine ───────────────────────────────────────────────────────────
+const ANALYST_SYSTEM = `You are the intelligence core of Covexy, a proactive AI assistant running on the user's Mac.
+
+Your job is NOT to describe what is on screen. Your job is to think like a senior analyst who has been watching this person work for hours and has access to live external information about their industry.
+
+USER PROFILE:
+{{USER_PROFILE}}
+
+ACTIVITY LOG — what the user has been doing today:
+{{ACTIVITY_LOG}}
+
+RECENT MEMORY — what Covexy has learned about this user over time:
+{{RECENT_MEMORY}}
+
+LIVE EXTERNAL CONTEXT — fresh information from the web about their industry:
+{{EXTERNAL_CONTEXT}}
+
+YOUR TASK:
+Look across all of this and find ONE insight that combines at least three of these elements:
+- A pattern you noticed in their activity today or across multiple days
+- A connection between two things they worked on at different times
+- External information they likely have not seen yet that is relevant to their projects
+- A strategic opportunity or risk relevant to their business
+- A prediction about what they will need in the next few hours based on their patterns
+
+THE BAR IS HIGH: Only generate an insight if the user would say "I did not know that" or "I was just thinking about that." The insight must be specific to THIS person and THEIR projects. No generic advice. If you cannot find a genuinely worthy insight, respond with SKIP.
+
+WHEN YOU HAVE A REAL INSIGHT respond in this exact format:
+CATEGORY: [WORK|RESEARCH|OPPORTUNITY|ALERT|PATTERN]
+INSIGHT: [One sentence. Specific, direct, no filler.]
+WHY NOW: [One sentence. Why this matters at this moment.]
+ACTION: [One sentence. One concrete thing they can do right now.]
+SEARCH: [3 to 5 keywords to find more context on this insight.]`
+
+async function runAnalyst () {
+  if (analystRunning || !apiKey || !profile) return
+  analystRunning = true
+  console.log('[Covexy] 🧠 Analyst running...')
+
+  try {
+    // Build activity summary from observer log
+    const activitySummary = observerLog.length
+      ? observerLog.slice(-50).map(e => `[${new Date(e.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}] ${e.description}`).join('\n')
+      : 'No activity recorded yet.'
+
+    // Build user profile text
+    const userProfile = [
+      profile.name        ? `Name: ${profile.name}`                  : null,
+      profile.profession  ? `Role: ${profile.profession}`            : null,
+      profile.projects    ? `Projects: ${profile.projects}`          : null,
+      profile.style       ? `Communication style: ${profile.style}`  : null,
+    ].filter(Boolean).join('\n')
+
+    // Fetch live external context based on user projects
+    let externalContext = 'No external context available.'
+    try {
+      const searchQuery = profile.projects
+        ? profile.projects.slice(0, 120) + ' latest news'
+        : 'AI market intelligence latest'
+      const result = await webSearch(searchQuery)
+      if (result && result.length > 30) externalContext = result.slice(0, 600)
+    } catch { /* non-critical */ }
+
+    const systemPrompt = ANALYST_SYSTEM
+      .replace('{{USER_PROFILE}}',    userProfile)
+      .replace('{{ACTIVITY_LOG}}',    activitySummary)
+      .replace('{{RECENT_MEMORY}}',   getRecentMemory(15))
+      .replace('{{EXTERNAL_CONTEXT}}', externalContext)
+
+    const raw = await aiChat([
+      { role: 'system', content: systemPrompt },
+      { role: 'user',   content: 'Analyze everything and surface the single most valuable insight right now. If nothing is worthy, respond SKIP.' }
+    ], 45000)
+
+    console.log('[Covexy] 🧠 Analyst response:', raw.slice(0, 150))
+
+    if (!raw || /^SKIP/i.test(raw.trim())) {
+      console.log('[Covexy] 🧠 Analyst: nothing worthy — staying silent')
+      analystRunning = false
+      return
+    }
+
+    // Parse response
+    const catMatch  = raw.match(/CATEGORY:\s*(.+)/i)
+    const insMatch  = raw.match(/INSIGHT:\s*(.+)/i)
+    const whyMatch  = raw.match(/WHY NOW:\s*(.+)/i)
+    const actMatch  = raw.match(/ACTION:\s*(.+)/i)
+    const srcMatch  = raw.match(/SEARCH:\s*(.+)/i)
+
+    const category    = (catMatch?.[1] || 'RESEARCH').trim().toUpperCase()
+    const insight     = insMatch?.[1]?.trim()
+    const whyNow      = whyMatch?.[1]?.trim() || ''
+    const action      = actMatch?.[1]?.trim() || ''
+    const searchTerms = srcMatch?.[1]?.trim() || ''
+
+    if (!insight || insight.length < 10) {
+      console.log('[Covexy] 🧠 Analyst: unparseable response')
+      analystRunning = false
+      return
+    }
+
+    // Score the insight before doing anything with it
+    const { score, reason } = await scoreInsight({ insight, whyNow, action, category }, profile, aiChat)
+    console.log(`[Covexy] 🎯 Analyst insight scored ${score}/10 — ${reason}`)
+
+    if (!shouldShowInsight(score)) {
+      console.log(`[Covexy] 🚫 Analyst insight below threshold — logging silently`)
+      addMemoryEntry({ type: 'proactive_insight', content: insight, category, action, whyNow, score, scoreReason: reason, source: 'analyst', tags: [category.toLowerCase()] })
+      analystRunning = false
+      return
+    }
+
+    // Run search enrichment
+    let searchResult  = ''
+    let searchSources = []
+    if (searchTerms) {
+      try {
+        const found = await webSearchFull(searchTerms)
+        if (found.text)    searchResult  = found.text
+        if (found.sources) searchSources = found.sources
+      } catch { /* non-critical */ }
+    }
+
+    // Save and notify
+    const saved = addMemoryEntry({ type: 'proactive_insight', content: insight, category, action, whyNow, search: searchTerms, sources: searchSources, score, scoreReason: reason, source: 'analyst', tags: [category.toLowerCase()], confidence: 'HIGH' })
+
+    if (saved) {
+      addActivity(`[Analyst] ${category}: ${insight}`, true)
+      push('insights-update', getInsights())
+
+      if (Date.now() - lastNotifTime >= 45 * 60 * 1000) {
+        lastNotifTime = Date.now()
+        showToast({ category, insight, whyNow, action, searchResult, sources: searchSources })
+        console.log(`[Covexy] 🧠 Analyst insight delivered: ${insight.slice(0, 80)}`)
+      } else {
+        console.log('[Covexy] 🧠 Analyst insight saved — cooldown active, no toast')
+      }
+    }
+
+  } catch (e) {
+    console.log('[Covexy] 🧠 Analyst error:', e.message)
+  }
+
+  analystRunning = false
+}
+
 // ─── Scanner lifecycle ────────────────────────────────────────────────────────
 function startScanner () {
   if (!loadApiKey()) {
