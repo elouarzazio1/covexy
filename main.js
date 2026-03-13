@@ -122,6 +122,33 @@ function loadApiKey ()       { return loadKeyEntry('openRouterKey') }
 function saveTavilyKey (key) { saveKeyEntry('tavilyKey', key) }
 function loadTavilyKey ()    { return loadKeyEntry('tavilyKey') }
 
+// ─── Tavily monthly usage counter (stored as plain fields in covexy-keys.json) ─
+function useTavilyCredit () {
+  // Returns true and increments counter if under the 1000/month cap.
+  // Returns false silently when cap is reached; resets counter on new month.
+  try {
+    const keys       = safeRead(KEYS_PATH, {})
+    const now        = new Date().toISOString().slice(0, 7)   // YYYY-MM
+    const isNewMonth = keys.tavilyMonthlyReset !== now
+    const count      = isNewMonth ? 0 : (keys.tavilyMonthlyCount || 0)
+    if (count >= 1000) {
+      console.log('[Covexy] Tavily monthly cap (1000) reached — using fallback')
+      return false
+    }
+    safeWrite(KEYS_PATH, { ...keys, tavilyMonthlyCount: count + 1, tavilyMonthlyReset: now })
+    return true
+  } catch { return true }
+}
+
+function getTavilyMonthlyUsage () {
+  try {
+    const keys       = safeRead(KEYS_PATH, {})
+    const now        = new Date().toISOString().slice(0, 7)
+    const isNewMonth = keys.tavilyMonthlyReset !== now
+    return { count: isNewMonth ? 0 : (keys.tavilyMonthlyCount || 0), limit: 1000 }
+  } catch { return { count: 0, limit: 1000 } }
+}
+
 // ─── Profile ──────────────────────────────────────────────────────────────────
 function loadProfile  () { profile = safeRead(PROFILE_PATH) }
 function saveProfile  (data) { profile = data; safeWrite(PROFILE_PATH, data) }
@@ -364,7 +391,7 @@ IMPORTANT: You have context about what the user has been doing today from the sc
 async function webSearch (query) {
   const tavilyKey = loadTavilyKey()
 
-  if (tavilyKey) {
+  if (tavilyKey && useTavilyCredit()) {
     try {
       const response = await axios.post(
         'https://api.tavily.com/search',
@@ -414,7 +441,7 @@ async function webSearch (query) {
 
 async function webSearchFull (query) {
   const tavilyKey = loadTavilyKey()
-  if (tavilyKey) {
+  if (tavilyKey && useTavilyCredit()) {
     try {
       const response = await axios.post(
         'https://api.tavily.com/search',
@@ -981,6 +1008,15 @@ ipcMain.handle('rate-insight', (_, timestamp, rating) => {
   safeWrite(MEMORY_PATH, memory)
   return { ok: true }
 })
+
+ipcMain.handle('save-timezone', (_, tz) => {
+  if (!tz || !profile) return false
+  profile.timezone = tz
+  safeWrite(PROFILE_PATH, profile)
+  return true
+})
+
+ipcMain.handle('get-tavily-usage', () => getTavilyMonthlyUsage())
 ipcMain.handle('get-chat-history',  () => todayChatHistory)
 ipcMain.handle('get-settings',        () => settings)
 ipcMain.handle('get-profile',         () => profile)

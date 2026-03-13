@@ -732,6 +732,7 @@ html, body {
             <button class="settings-btn" id="tavily-save-btn" onclick="saveTavilyKeyUI()">Save</button>
           </div>
           <div class="settings-status" id="tavily-status"></div>
+          <div id="tavily-usage" style="font-size:11px;color:var(--text-faint);margin-top:4px;min-height:14px;"></div>
         </div>
 
         <div class="settings-section">
@@ -748,6 +749,11 @@ html, body {
             <option value="300000">Every 5 minutes</option>
             <option value="600000">Every 10 minutes</option>
           </select>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-section-title">Timezone</div>
+          <div id="settings-timezone" style="font-size:13px;color:var(--text-dim);padding:2px 0;">Detecting…</div>
         </div>
 
         <div class="settings-section">

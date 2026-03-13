@@ -327,17 +327,37 @@ function loadSettingsUI (s) {
     const opt = daysEl.querySelector(`option[value="${s.memoryDays}"]`)
     if (opt) opt.selected = true
   }
+
+  // Auto-detect and display timezone
+  const tz    = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const tzEl  = document.getElementById('settings-timezone')
+  if (tzEl) tzEl.textContent = `${tz} (auto-detected)`
+
+  // Show Tavily monthly usage
+  window.electronAPI.getTavilyUsage().then(({ count, limit }) => {
+    const el = document.getElementById('tavily-usage')
+    if (!el) return
+    if (count >= limit) {
+      el.textContent = 'Limit reached, using fallback search'
+      el.style.color = '#E35335'
+    } else {
+      el.textContent = `Tavily searches this month: ${count} / ${limit}`
+      el.style.color = ''
+    }
+  }).catch(() => {})
 }
 
 async function saveSettings () {
   const interval = parseInt(document.getElementById('scan-interval').value)
   const days     = parseInt(document.getElementById('memory-days').value)
+  const tz       = Intl.DateTimeFormat().resolvedOptions().timeZone
 
   const btn = document.querySelector('.settings-save-btn')
   btn.textContent = 'Saving…'
   btn.disabled = true
 
   await window.electronAPI.saveSettings({ scanInterval: interval, memoryDays: days })
+  window.electronAPI.saveTimezone(tz)   // persist detected timezone into profile
 
   btn.textContent = '✓ Saved'
   setTimeout(() => { btn.textContent = 'Save Settings'; btn.disabled = false }, 1500)
