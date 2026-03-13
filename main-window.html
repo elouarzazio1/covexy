@@ -601,6 +601,13 @@ html, body {
   letter-spacing: 0.08em;
 }
 
+/* ── Settings text visibility ────────────────────────────── */
+.settings-page * { color: #F0F0F0 !important; }
+.settings-page .settings-section-title { color: #777777 !important; }
+.settings-page .settings-version { color: #555555 !important; }
+.settings-page .settings-status.ok  { color: #4CAF50 !important; }
+.settings-page .settings-status.err { color: #EF4444 !important; }
+
 /* ── Spinner ─────────────────────────────────────────────── */
 .spinner {
   display: inline-block;
@@ -716,7 +723,7 @@ html, body {
     </div>
 
     <!-- ── SETTINGS PANEL ─────────────────── -->
-    <div class="panel" id="panel-settings">
+    <div class="panel settings-page" id="panel-settings">
       <div class="panel-header">
         <div class="panel-title">Settings</div>
         <div class="panel-sub">Configure Covexy's behavior</div>
