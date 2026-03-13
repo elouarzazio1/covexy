@@ -53,8 +53,8 @@ textarea{min-height:88px;line-height:1.5}
 /* Password wrapper */
 .pw-wrap{position:relative;width:100%}
 .pw-wrap input{padding-right:44px}
-.pw-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--dim);font-size:14px;-webkit-app-region:no-drag}
-.pw-toggle:hover{color:var(--text)}
+.pw-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);background:transparent;border:none;cursor:pointer;color:rgba(255,255,255,.4);display:flex;align-items:center;padding:4px;-webkit-app-region:no-drag;transition:color .15s}
+.pw-toggle:hover{color:rgba(255,255,255,.8)}
 
 /* Buttons */
 .btn{
@@ -154,10 +154,10 @@ textarea{min-height:88px;line-height:1.5}
     <div class="step" id="step-api">
       <div class="step-title">Connect your AI</div>
       <div class="step-sub">Covexy uses OpenRouter to power its intelligence. Get your free key at openrouter.ai, then paste it below. It stays on your device and is never shared.</div>
-      <a class="ext-link" href="javascript:void(0)" onclick="window.covexy.openExternal('https://openrouter.ai'); return false;">Get your free key at openrouter.ai ↗</a>
+      <a href="https://openrouter.ai" target="_blank" class="ext-link">Get your free key at openrouter.ai ↗</a>
       <div class="pw-wrap" style="margin-bottom:10px">
         <input type="password" id="api-input" placeholder="Paste your API key…" autocomplete="off" oninput="onApiInput()">
-        <button class="pw-toggle" onclick="togglePw()">👁</button>
+        <button class="pw-toggle" id="api-eye" onclick="togglePw()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
       </div>
       <div class="test-status" id="test-status"></div>
       <div class="btn-row" style="margin-top:14px">
@@ -169,10 +169,10 @@ textarea{min-height:88px;line-height:1.5}
     <div class="step" id="step-tavily">
       <div class="step-title">Enable web search</div>
       <div class="step-sub">Covexy uses Tavily to search the web for you automatically. Get your free key at tavily.com, then paste it below. Free plan includes 1000 searches per month.</div>
-      <a class="ext-link" href="javascript:void(0)" onclick="window.covexy.openExternal('https://www.tavily.com'); return false;">Get your free key at tavily.com ↗</a>
+      <a href="https://tavily.com" target="_blank" class="ext-link">Get your free key at tavily.com ↗</a>
       <div class="pw-wrap" style="margin-bottom:10px">
         <input type="password" id="tavily-input" placeholder="Paste Tavily API key (optional)" autocomplete="off">
-        <button class="pw-toggle" onclick="toggleTavilyPw()">👁</button>
+        <button class="pw-toggle" id="tavily-eye" onclick="toggleTavilyPw()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
       </div>
       <div class="btn-row" style="margin-top:14px">
         <button class="btn btn-secondary" onclick="skipTavily()">Skip for now</button>
