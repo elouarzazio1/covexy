@@ -57,6 +57,8 @@ let isProcessing    = false
 let isPaused        = false
 let lastNotifTime   = 0   // ms — enforces 10-min cooldown between overlays
 let scanTimer          = null
+let analystTimer       = null
+let analystRunning     = false
 let watchlistTimer     = null
 let isWatchlistScanning = false
 let whisperAvailable   = false
@@ -66,7 +68,8 @@ let apiKey          = null
 let profile         = null
 let memory          = []
 let settings        = { scanInterval: 180000, memoryDays: 7 }
-let todayActivity   = []
+let todayActivity      = []
+let observerLog        = []
 let todayChatHistory = []
 
 // ─── File paths (populated after app.getPath is available) ───────────────────
