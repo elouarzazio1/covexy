@@ -1032,7 +1032,7 @@ function startScanner () {
     return
   }
   if (scanTimer) clearInterval(scanTimer)
-  console.log(`[Covexy] 🔁 Scanner started — every ${settings.scanInterval / 1000}s`)
+  console.log(`[Covexy] 🔁 Observer started — every ${settings.scanInterval / 1000}s`)
   setTimeout(() => {
     if (loadApiKey()) {
       analyzeScreen()
@@ -1041,6 +1041,13 @@ function startScanner () {
       console.log('[Covexy] Scanner waiting — paste API key in Settings')
     }
   }, 15000)
+
+  // Analyst engine — runs every 30 minutes
+  if (!analystTimer) {
+    analystTimer = setInterval(runAnalyst, ANALYST_INTERVAL)
+    setTimeout(runAnalyst, 5 * 60 * 1000) // first run 5 minutes after startup
+    console.log('[Covexy] 🧠 Analyst armed — runs every 30 minutes')
+  }
 
   // Watchlist scanner — independent 2-hour interval
   if (!watchlistTimer) {
