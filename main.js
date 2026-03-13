@@ -231,6 +231,10 @@ function loadTodayActivity () {
 function addActivity (description, triggered = false) {
   todayActivity.push({ timestamp: new Date().toISOString(), description, triggered })
   safeWrite(actFile(), todayActivity)
+
+  // Observer: also push to in-memory log for the Analyst to read
+  observerLog.push({ timestamp: new Date().toISOString(), description })
+  if (observerLog.length > OBSERVER_MAXLOG) observerLog = observerLog.slice(-OBSERVER_MAXLOG)
 }
 
 function todayActivityText () {
