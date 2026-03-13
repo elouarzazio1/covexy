@@ -22,6 +22,11 @@ const PROFILE_STEPS = [
     key: 'projects', type: 'textarea', placeholder: 'Describe your active projects, goals, or areas of focus…'
   },
   {
+    title: 'What should I always watch for?',
+    sub: 'Covexy will search these topics every few hours, even when you are away.',
+    key: 'watchlist', type: 'watchlist'
+  },
+  {
     title: 'Focus apps',
     sub: 'Covexy stays quiet while you use these apps. It still watches context, but holds notifications until you switch away.',
     key: 'ignore', type: 'textarea', placeholder: 'e.g. gaming, personal social media browsing, Netflix'
@@ -144,6 +149,21 @@ function showProfileStep (idx) {
   } else if (s.type === 'textarea') {
     area.innerHTML = `<textarea id="profile-field" placeholder="${s.placeholder}">${esc(profileData[s.key] || '')}</textarea>`
     setTimeout(() => document.getElementById('profile-field')?.focus(), 50)
+  } else if (s.type === 'watchlist') {
+    const existing = Array.isArray(profileData.watchlist) ? profileData.watchlist : []
+    const placeholders = [
+      'e.g. GEO search trends',
+      'e.g. mention.ma competitors',
+      'e.g. AI model pricing',
+      'e.g. OpenRouter updates',
+      'e.g. your industry keyword'
+    ]
+    area.innerHTML = `<div class="watchlist-inputs">${[0,1,2,3,4].map(i => `
+      <div class="watchlist-item">
+        <div class="watchlist-label">Topic ${i + 1}</div>
+        <input type="text" id="wl-${i}" placeholder="${placeholders[i]}" value="${esc(existing[i] || '')}">
+      </div>`).join('')}</div>`
+    setTimeout(() => document.getElementById('wl-0')?.focus(), 50)
   } else if (s.type === 'style') {
     selectedStyle = profileData.style || null
     area.innerHTML = `
@@ -189,6 +209,10 @@ async function profileNext () {
   // Save current step
   if (s.type === 'style') {
     profileData.style = selectedStyle || 'direct'
+  } else if (s.type === 'watchlist') {
+    profileData.watchlist = [0,1,2,3,4]
+      .map(i => (document.getElementById(`wl-${i}`)?.value || '').trim())
+      .filter(Boolean)
   } else {
     const field = document.getElementById('profile-field')
     profileData[s.key] = field?.value?.trim() || ''

@@ -53,8 +53,10 @@ let tray            = null
 let isProcessing    = false
 let isPaused        = false
 let lastNotifTime   = 0   // ms — enforces 10-min cooldown between overlays
-let scanTimer       = null
-let whisperAvailable = false
+let scanTimer          = null
+let watchlistTimer     = null
+let isWatchlistScanning = false
+let whisperAvailable   = false
 
 // ─── In-memory data ────────────────────────────────────────────────────────────
 let apiKey          = null
@@ -710,6 +712,101 @@ async function analyzeScreen () {
   isProcessing = false
 }
 
+// ─── Watchlist scanner ────────────────────────────────────────────────────────
+const WATCHLIST_SYSTEM = `You are Covexy, a concise AI briefing assistant. The user tracks a topic and you have new search results about it. Write a short structured update.
+
+Respond in EXACTLY this format (no other text):
+CATEGORY: [WORK|RESEARCH|IDEA|ALERT|LIFE]
+INSIGHT: [One clear sentence describing what is new or notable]
+WHY NOW: [One sentence on why this matters right now]
+ACTION: [One concrete step the user could take]
+
+Be specific. Use the search data. Be direct. No filler.`
+
+async function scanWatchlistTopic (topic) {
+  // Part 4 — 24h dedup: skip if a watchlist insight for this topic exists in the last 24h
+  const cutoff24h = Date.now() - 24 * 60 * 60 * 1000
+  const recentSameDay = memory.filter(m =>
+    m.watchlistTopic === topic &&
+    new Date(m.timestamp).getTime() > cutoff24h
+  )
+  if (recentSameDay.length > 0) {
+    console.log(`[Covexy] 🔭 Watchlist: recent insight for "${topic}" — skipping`)
+    return
+  }
+
+  // Fetch latest results
+  const { text: searchText, sources } = await webSearchFull(topic)
+  if (!searchText || searchText.length < 30) {
+    console.log(`[Covexy] 🔭 Watchlist: no useful results for "${topic}"`)
+    return
+  }
+
+  // Ask AI to format a structured insight from the search results
+  const raw = await aiChat([
+    { role: 'system', content: WATCHLIST_SYSTEM },
+    { role: 'user',   content: `Watchlist topic: "${topic}"\n\nUser context:\n- Name: ${profile?.name || 'the user'}\n- Role: ${profile?.profession || 'professional'}\n- Projects: ${profile?.projects || 'not specified'}\n\nLatest search results:\n${searchText.slice(0, 800)}` }
+  ])
+  if (!raw || raw.trim().length < 20) return
+
+  // Parse structured response
+  const catMatch = raw.match(/CATEGORY:\s*(.+)/i)
+  const insMatch = raw.match(/INSIGHT:\s*(.+)/i)
+  const whyMatch = raw.match(/WHY NOW:\s*(.+)/i)
+  const actMatch = raw.match(/ACTION:\s*(.+)/i)
+
+  const category = (catMatch?.[1] || 'RESEARCH').trim().toUpperCase()
+  const insight  = insMatch?.[1]?.trim()
+  const whyNow   = whyMatch?.[1]?.trim() || ''
+  const action   = actMatch?.[1]?.trim() || ''
+  if (!insight || insight.length < 5) return
+
+  // Part 4 — word-overlap dedup against last 20 entries for this topic
+  const priorForTopic = memory.filter(m => m.watchlistTopic === topic).slice(0, 20)
+  const newWords = new Set(insight.toLowerCase().split(/\W+/).filter(w => w.length > 3))
+  const tooSimilar = priorForTopic.some(m => {
+    const old = m.content.toLowerCase().split(/\W+/).filter(w => w.length > 3)
+    return old.filter(w => newWords.has(w)).length > 3
+  })
+  if (tooSimilar) {
+    console.log(`[Covexy] 🔭 Watchlist: duplicate insight for "${topic}" — skipping`)
+    return
+  }
+
+  const saved = addMemoryEntry({
+    type: 'proactive_insight', content: insight, category,
+    action, whyNow, search: topic, sources,
+    watchlistTopic: topic,
+    tags: [category.toLowerCase(), 'watchlist'], confidence: 'HIGH'
+  })
+
+  if (saved) {
+    addActivity(`Watchlist [${topic}]: ${insight}`, true)
+    push('insights-update', getInsights())
+    console.log(`[Covexy] 🔭 Watchlist insight saved: [${topic}] ${insight.slice(0, 60)}`)
+  }
+}
+
+async function runWatchlistScan () {
+  if (isWatchlistScanning) return
+  const watchlist = (profile?.watchlist || []).filter(Boolean)
+  if (watchlist.length === 0) return
+  if (!loadApiKey()) return
+
+  isWatchlistScanning = true
+  console.log(`[Covexy] 🔭 Watchlist scan starting — ${watchlist.length} topic(s)`)
+  for (const topic of watchlist) {
+    try {
+      await scanWatchlistTopic(topic)
+      await new Promise(r => setTimeout(r, 3000)) // space out API calls
+    } catch (e) {
+      console.log('[Covexy] Watchlist scan error:', e.message)
+    }
+  }
+  console.log('[Covexy] 🔭 Watchlist scan complete')
+  isWatchlistScanning = false
+}
+
 // ─── Chat ─────────────────────────────────────────────────────────────────────
 async function sendChatMessage (userMessage) {
   // Auto-search when the message is about current events / products
@@ -781,6 +878,13 @@ function startScanner () {
       console.log('[Covexy] Scanner waiting — paste API key in Settings')
     }
   }, 15000)
+
+  // Watchlist scanner — independent 2-hour interval
+  if (!watchlistTimer) {
+    watchlistTimer = setInterval(runWatchlistScan, 2 * 60 * 60 * 1000)
+    setTimeout(runWatchlistScan, 60 * 1000) // first run 60s after startup
+    console.log('[Covexy] 🔭 Watchlist scanner armed — runs every 2h')
+  }
 }
 
 function restartScanner () {
@@ -1013,6 +1117,16 @@ ipcMain.handle('save-timezone', (_, tz) => {
   if (!tz || !profile) return false
   profile.timezone = tz
   safeWrite(PROFILE_PATH, profile)
+  return true
+})
+
+ipcMain.handle('save-watchlist', (_, topics) => {
+  if (!profile) return false
+  profile.watchlist = Array.isArray(topics) ? topics.filter(Boolean) : []
+  safeWrite(PROFILE_PATH, profile)
+  push('profile-update', profile)
+  // Trigger a fresh watchlist scan soon so new topics show up quickly
+  setTimeout(runWatchlistScan, 5000)
   return true
 })
 

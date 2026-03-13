@@ -143,11 +143,16 @@ function renderInsights () {
     const upClass   = item.rating === 1  ? 'active' : (item.rating === -1 ? 'faded' : '')
     const downClass = item.rating === -1 ? 'active' : (item.rating === 1  ? 'faded' : '')
 
+    const watchlistLabelHtml = item.watchlistTopic
+      ? `<div style="font-size:10px;color:var(--text-faint);font-weight:600;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:3px;">Watchlist: ${esc(item.watchlistTopic)}</div>`
+      : ''
+
     return `
       <div class="insight-card" data-card-id="${cardId}" onclick="toggleCard('${cardId}')">
         <div class="insight-card-header">
           <div class="insight-icon ${c.cls}">${c.icon}</div>
           <div style="flex:1;min-width:0;">
+            ${watchlistLabelHtml}
             <div class="insight-text">${esc(item.content)}</div>
             ${actionHtml}
             <div class="insight-time">${fmtTime(item.timestamp)}</div>
@@ -333,6 +338,15 @@ function loadSettingsUI (s) {
   const tzEl  = document.getElementById('settings-timezone')
   if (tzEl) tzEl.textContent = `${tz} (auto-detected)`
 
+  // Populate watchlist fields from saved profile
+  window.electronAPI.getProfile().then(prof => {
+    const wl = prof?.watchlist || []
+    for (let i = 0; i < 5; i++) {
+      const el = document.getElementById(`wl-settings-${i}`)
+      if (el) el.value = wl[i] || ''
+    }
+  }).catch(() => {})
+
   // Show Tavily monthly usage
   window.electronAPI.getTavilyUsage().then(({ count, limit }) => {
     const el = document.getElementById('tavily-usage')
@@ -361,6 +375,23 @@ async function saveSettings () {
 
   btn.textContent = '✓ Saved'
   setTimeout(() => { btn.textContent = 'Save Settings'; btn.disabled = false }, 1500)
+}
+
+async function saveWatchlist () {
+  const topics = []
+  for (let i = 0; i < 5; i++) {
+    const val = (document.getElementById(`wl-settings-${i}`)?.value || '').trim()
+    if (val) topics.push(val)
+  }
+  const btn    = document.getElementById('watchlist-save-btn')
+  const status = document.getElementById('watchlist-status')
+  btn.textContent = 'Saving…'
+  btn.disabled = true
+  await window.electronAPI.saveWatchlist(topics)
+  if (status) { status.textContent = '✓ Saved'; status.className = 'settings-status ok' }
+  btn.textContent = 'Save Watchlist'
+  btn.disabled = false
+  setTimeout(() => { if (status) { status.textContent = ''; status.className = 'settings-status' } }, 2000)
 }
 
 async function reTestApiKey () {

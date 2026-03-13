@@ -736,6 +736,20 @@ html, body {
         </div>
 
         <div class="settings-section">
+          <div class="settings-section-title">Watchlist</div>
+          <div style="font-size:11px;color:var(--text-faint);margin-bottom:10px;line-height:1.5;">Topics Covexy searches every 2 hours in the background.</div>
+          <input type="text" class="settings-input" id="wl-settings-0" placeholder="e.g. GEO search trends"       style="margin-bottom:6px">
+          <input type="text" class="settings-input" id="wl-settings-1" placeholder="e.g. mention.ma competitors" style="margin-bottom:6px">
+          <input type="text" class="settings-input" id="wl-settings-2" placeholder="e.g. AI model pricing"       style="margin-bottom:6px">
+          <input type="text" class="settings-input" id="wl-settings-3" placeholder="e.g. OpenRouter updates"     style="margin-bottom:6px">
+          <input type="text" class="settings-input" id="wl-settings-4" placeholder="e.g. your industry keyword"  style="margin-bottom:8px">
+          <div style="display:flex;align-items:center;gap:10px;-webkit-app-region:no-drag;">
+            <button class="settings-btn" id="watchlist-save-btn" onclick="saveWatchlist()">Save Watchlist</button>
+            <div class="settings-status" id="watchlist-status"></div>
+          </div>
+        </div>
+
+        <div class="settings-section">
           <div class="settings-section-title">Audio Transcription</div>
           <div class="settings-status" id="whisper-status" style="padding:0;">Checking…</div>
         </div>

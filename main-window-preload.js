@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   rateInsight:       (ts, r) => ipcRenderer.invoke('rate-insight', ts, r),
   saveTimezone:      (tz)   => ipcRenderer.invoke('save-timezone', tz),
   getTavilyUsage:    ()     => ipcRenderer.invoke('get-tavily-usage'),
+  saveWatchlist:     (list) => ipcRenderer.invoke('save-watchlist', list),
 
   // ── Push subscriptions ───────────────────────────────────────
   onSwitchTab:       (cb) => ipcRenderer.on('switch-tab',       (_, d) => cb(d)),
