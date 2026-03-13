@@ -633,21 +633,26 @@ async function analyzeScreen () {
         role: 'user',
         content: [
           { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64}` } },
-          { type: 'text', text: liveContextPrefix + 'Analyze this screenshot according to your instructions.' }
+          { type: 'text', text: liveContextPrefix + 'Look at this screenshot. Your ONLY job is to log what the user is doing in one short sentence. Do NOT generate an insight. Do NOT give advice. Just describe the activity so it can be logged. If the screen is blank, a screensaver, or a browser homepage respond with SKIP.' }
         ]
       }
     ], 60000)
 
     console.log('[Covexy] 💬 Response:', raw.slice(0, 150))
 
-    // SKIP — parse optional description for the activity log
+    // Observer only logs activity — Analyst generates insights
     if (!raw || /^SKIP/i.test(raw.trim())) {
-      const skipDesc = raw.replace(/^SKIP:?\s*/i, '').trim() || 'nothing noteworthy on screen'
-      console.log('[Covexy] ⏭  Skip:', skipDesc.slice(0, 80))
-      addActivity(skipDesc, false)
+      console.log('[Covexy] 👁  Observer: blank screen — skipping')
       isProcessing = false
       return
     }
+
+    // Log what the user is doing and return — no insight generation here
+    const activityDescription = raw.replace(/^SKIP:?\s*/i, '').trim()
+    console.log('[Covexy] 👁  Observer logged:', activityDescription.slice(0, 80))
+    addActivity(activityDescription, false)
+    isProcessing = false
+    return
 
     // Parse structured response
     const catMatch    = raw.match(/CATEGORY:\s*(.+)/i)
