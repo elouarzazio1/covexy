@@ -140,8 +140,9 @@ html, body {
 .nav-item.active::before {
   content: '';
   position: absolute;
-  left: 0; top: 6px; bottom: 6px;
-  width: 2px;
+  left: 0;
+  top: 50%; transform: translateY(-50%);
+  width: 2px; height: 16px;
   background: #F0F0F0;
   border-radius: 0 2px 2px 0;
 }
@@ -167,21 +168,13 @@ html, body {
 .sidebar-footer {
   padding: 12px 18px;
   font-size: 10px;
-  color: #4A4A4A;
+  color: #3A3A3A;
   letter-spacing: 0.06em;
   border-top: 1px solid rgba(255,255,255,0.06);
   -webkit-app-region: no-drag;
 }
 
-.status-dot {
-  display: inline-block;
-  width: 5px; height: 5px;
-  background: var(--accent);
-  border-radius: 50%;
-  margin-right: 5px;
-  vertical-align: middle;
-  animation: breathe 2.4s ease-in-out infinite;
-}
+.status-dot { display: none; }
 
 /* ── Content ─────────────────────────────────────────────── */
 .content {
@@ -242,18 +235,17 @@ html, body {
 .insight-card {
   display: flex;
   flex-direction: column;
-  padding: 12px 14px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 10px;
+  padding: 14px 2px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background 0.15s;
   animation: fadeUp 0.2s ease;
   -webkit-app-region: no-drag;
-  margin-bottom: 8px;
 }
-.insight-card:last-child { margin-bottom: 0; }
-.insight-card:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.09); }
+.insight-card:last-child { border-bottom: none; }
+.insight-card:hover { background: transparent; }
 
 .insight-card-header {
   display: flex;
@@ -362,14 +354,14 @@ html, body {
 }
 .fb-btn {
   background: none; border: none; cursor: pointer;
-  font-size: 12px; opacity: 0.30; padding: 2px 5px;
-  border-radius: 5px; transition: opacity 0.12s;
+  font-size: 12px; padding: 2px 6px;
+  transition: color 0.12s;
   -webkit-app-region: no-drag; line-height: 1; font-family: var(--font);
-  color: #555555;
+  color: #3A3A3A;
 }
-.fb-btn:hover  { opacity: 0.7; color: #FFFFFF; }
-.fb-btn.active { opacity: 1; color: #FFFFFF; }
-.fb-btn.faded  { opacity: 0.07; }
+.fb-btn:hover  { color: #888888; }
+.fb-btn.active { color: #F0F0F0; }
+.fb-btn.faded  { color: #222222; }
 
 /* ── Memory ──────────────────────────────────────────────── */
 .day-group { margin-bottom: 20px; }
@@ -508,10 +500,10 @@ html, body {
 
 .settings-section-title {
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
+  font-weight: 600;
+  letter-spacing: 1.5px;
   text-transform: uppercase;
-  color: #4A4A4A;
+  color: #444444;
   margin-bottom: 9px;
 }
 
@@ -749,7 +741,7 @@ html, body {
             <button class="settings-btn" id="tavily-save-btn" onclick="saveTavilyKeyUI()">Save</button>
           </div>
           <div class="settings-status" id="tavily-status"></div>
-          <div id="tavily-usage" style="font-size:11px;color:var(--text-faint);margin-top:4px;min-height:14px;"></div>
+          <div id="tavily-usage" style="font-size:11px;color:#888888;margin-top:4px;min-height:14px;"></div>
         </div>
 
         <div class="settings-section">

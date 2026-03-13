@@ -144,7 +144,7 @@ function renderInsights () {
     const downClass = item.rating === -1 ? 'active' : (item.rating === 1  ? 'faded' : '')
 
     const watchlistLabelHtml = item.watchlistTopic
-      ? `<div style="display:inline-block;font-size:10px;color:#888888;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;background:#3A3A3A;border-radius:4px;padding:1px 6px;margin-bottom:5px;">Watchlist: ${esc(item.watchlistTopic)}</div>`
+      ? `<div style="font-size:10px;color:#4A4A4A;font-weight:500;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">${esc(item.watchlistTopic)}</div>`
       : ''
 
     return `
@@ -160,8 +160,8 @@ function renderInsights () {
           <div class="insight-chevron">▾</div>
         </div>
         <div class="insight-feedback" onclick="event.stopPropagation()">
-          <button class="fb-btn ${upClass}"   onclick="rateInsight('${cardId}',  1, event)" title="Useful">👍</button>
-          <button class="fb-btn ${downClass}" onclick="rateInsight('${cardId}', -1, event)" title="Not useful">👎</button>
+          <button class="fb-btn ${upClass}"   onclick="rateInsight('${cardId}',  1, event)" title="Useful">↑</button>
+          <button class="fb-btn ${downClass}" onclick="rateInsight('${cardId}', -1, event)" title="Not useful">↓</button>
         </div>
         <div class="insight-expanded-body">
           ${whyNowHtml}
@@ -528,7 +528,8 @@ async function loadWhisperStatus () {
     const { available } = await window.electronAPI.getWhisperStatus()
     if (available) {
       el.textContent = 'Audio transcription: Active'
-      el.className = 'settings-status ok'
+      el.className = 'settings-status'
+      el.style.color = '#F0F0F0'
     } else {
       el.textContent = 'Audio transcription: Not available — install Whisper to enable'
       el.className = 'settings-status'
