@@ -40,7 +40,7 @@ if (!gotTheLock) {
 // ─── Constants ────────────────────────────────────────────────────────────────
 const MODEL          = 'google/gemini-3-flash-preview'
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
-const ANALYST_INTERVAL  = 30 * 60 * 1000   // Analyst runs every 30 minutes
+const ANALYST_INTERVAL  = 2 * 60 * 60 * 1000   // Analyst runs every 2 hours
 const OBSERVER_MAXLOG   = 200               // Max activity entries kept in memory
 const APP_VERSION    = '3.0.0'
 const OPENROUTER_HEADERS = { 'HTTP-Referer': 'https://covexy.com', 'X-Title': 'Covexy' }
@@ -885,38 +885,38 @@ function getInsights () {
 }
 
 // ─── Analyst Engine ───────────────────────────────────────────────────────────
-const ANALYST_SYSTEM = `You are the intelligence core of Covexy, a proactive AI assistant running on the user's Mac.
-
-Your job is NOT to describe what is on screen. Your job is to think like a senior analyst who has been watching this person work for hours and has access to live external information about their industry.
+const ANALYST_SYSTEM = `You are Covexy, a silent AI that has been watching this person work all day. You know their projects, their patterns, and their world. You speak like a smart friend who happens to know everything — direct, short, personal. Never like a news briefing.
 
 USER PROFILE:
 {{USER_PROFILE}}
 
-ACTIVITY LOG — what the user has been doing today:
+WHAT THEY DID TODAY:
 {{ACTIVITY_LOG}}
 
-RECENT MEMORY — what Covexy has learned about this user over time:
+WHAT YOU REMEMBER ABOUT THEM:
 {{RECENT_MEMORY}}
 
-LIVE EXTERNAL CONTEXT — fresh information from the web about their industry:
+FRESH EXTERNAL SIGNALS:
 {{EXTERNAL_CONTEXT}}
 
-YOUR TASK:
-Look across all of this and find ONE insight that combines at least three of these elements:
-- A pattern you noticed in their activity today or across multiple days
-- A connection between two things they worked on at different times
-- External information they likely have not seen yet that is relevant to their projects
-- A strategic opportunity or risk relevant to their business
-- A prediction about what they will need in the next few hours based on their patterns
+YOUR JOB:
+Look at everything above and ask yourself one question: is there ONE thing this person does not know right now that would genuinely matter to them today?
 
-THE BAR IS HIGH: Only generate an insight if the user would say "I did not know that" or "I was just thinking about that." The insight must be specific to THIS person and THEIR projects. No generic advice. If you cannot find a genuinely worthy insight, respond with SKIP.
+The bar is high. Ask yourself:
+- Would they say "I did not know that" or "I was just thinking about that"?
+- Is this specific to THEIR projects, not generic AI news?
+- Does it connect something they did today with something external?
+- Would a smart friend actually send this as a message?
 
-WHEN YOU HAVE A REAL INSIGHT respond in this exact format:
+If you cannot find something that passes all four, respond with SKIP. Silence is correct. Do not force an insight.
+
+If you have something real, write it like a short message from a friend. No category labels in the text. No "Based on your activity." No corporate tone. Just say it directly.
+
 CATEGORY: [WORK|RESEARCH|OPPORTUNITY|ALERT|PATTERN]
-INSIGHT: [One sentence. Specific, direct, no filler.]
-WHY NOW: [One sentence. Why this matters at this moment.]
-ACTION: [One sentence. One concrete thing they can do right now.]
-SEARCH: [3 to 5 keywords to find more context on this insight.]`
+INSIGHT: [One sentence. Conversational. Specific to them. Like a text message.]
+WHY NOW: [One sentence. Why this matters today specifically.]
+ACTION: [One sentence. The single most useful next step.]
+SEARCH: [3 to 5 keywords to find more context on this.]`
 
 async function runAnalyst () {
   if (analystRunning || !apiKey || !profile) return
@@ -940,11 +940,17 @@ async function runAnalyst () {
     // Fetch live external context based on user projects
     let externalContext = 'No external context available.'
     try {
-      const searchQuery = profile.projects
-        ? profile.projects.slice(0, 120) + ' latest news'
-        : 'AI market intelligence latest'
-      const result = await webSearch(searchQuery)
+      const specificQueries = [
+        'mention.ma GEO generative engine optimization latest',
+        'InferenceWatch AI model pricing benchmark 2026',
+        'GEO AI search visibility Morocco Africa',
+        'OpenRouter model updates this week',
+        'AI visibility search engines latest research'
+      ]
+      const randomQuery = specificQueries[Math.floor(Math.random() * specificQueries.length)]
+      const result = await webSearch(randomQuery)
       if (result && result.length > 30) externalContext = result.slice(0, 600)
+      console.log('[Covexy] 🧠 Analyst searched:', randomQuery)
     } catch { /* non-critical */ }
 
     const systemPrompt = ANALYST_SYSTEM
@@ -1014,7 +1020,7 @@ async function runAnalyst () {
       addActivity(`[Analyst] ${category}: ${insight}`, true)
       push('insights-update', getInsights())
 
-      if (Date.now() - lastNotifTime >= 45 * 60 * 1000) {
+      if (Date.now() - lastNotifTime >= 2 * 60 * 60 * 1000) {
         lastNotifTime = Date.now()
         showToast({ category, insight, whyNow, action, searchResult, sources: searchSources })
         console.log(`[Covexy] 🧠 Analyst insight delivered: ${insight.slice(0, 80)}`)
@@ -1050,7 +1056,7 @@ function startScanner () {
   // Analyst engine — runs every 30 minutes
   if (!analystTimer) {
     analystTimer = setInterval(runAnalyst, ANALYST_INTERVAL)
-    setTimeout(runAnalyst, 5 * 60 * 1000) // first run 5 minutes after startup
+    setTimeout(runAnalyst, 10 * 60 * 1000) // first run 10 minutes after startup
     console.log('[Covexy] 🧠 Analyst armed — runs every 30 minutes')
   }
 
