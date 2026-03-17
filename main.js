@@ -43,7 +43,7 @@ const ANALYST_MODEL  = 'deepseek/deepseek-r1'
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const ANALYST_INTERVAL  = 2 * 60 * 60 * 1000   // Analyst runs every 2 hours
 const OBSERVER_MAXLOG   = 200               // Max activity entries kept in memory
-const APP_VERSION    = '3.0.0'
+const APP_VERSION    = '1.0.0'
 const OPENROUTER_HEADERS = { 'HTTP-Referer': 'https://covexy.com', 'X-Title': 'Covexy' }
 
 // ─── Dock ─────────────────────────────────────────────────────────────────────

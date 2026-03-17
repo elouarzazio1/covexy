@@ -23,7 +23,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveTavilyKey:     (key)  => ipcRenderer.invoke('save-tavily-key', key),
   testTavilyKey:     (key)  => ipcRenderer.invoke('test-tavily-key', key),
   getWhisperStatus:  ()     => ipcRenderer.invoke('get-whisper-status'),
-  openExternal:      (url)  => shell.openExternal(url),
+  openExternal:      (url)  => ipcRenderer.send('open-external', url),
   rateInsight:       (ts, r) => ipcRenderer.invoke('rate-insight', ts, r),
   saveTimezone:      (tz)   => ipcRenderer.invoke('save-timezone', tz),
   getTavilyUsage:    ()     => ipcRenderer.invoke('get-tavily-usage'),
