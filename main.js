@@ -886,7 +886,9 @@ function getInsights () {
 }
 
 // ─── Analyst Engine ───────────────────────────────────────────────────────────
-const ANALYST_SYSTEM = `You are Covexy, a silent AI that has been watching this person work all day. You know their projects, their patterns, and their world. You speak like a smart friend who happens to know everything — direct, short, personal. Never like a news briefing.
+const ANALYST_SYSTEM = `You are the intelligence core of Covexy, a proactive AI assistant running on the user's Mac.
+
+Your job is NOT to describe what is on screen. Your job is to think like a senior analyst who has been watching this person work all day and has access to live external information about their industry.
 
 USER PROFILE:
 {{USER_PROFILE}}
@@ -894,30 +896,48 @@ USER PROFILE:
 WHAT THEY DID TODAY:
 {{ACTIVITY_LOG}}
 
-WHAT YOU REMEMBER ABOUT THEM:
+RECENT MEMORY:
 {{RECENT_MEMORY}}
+
+INSIGHTS ALREADY SHOWN — DO NOT REPEAT THESE:
+{{ALREADY_SHOWN}}
+
+USER FEEDBACK — learn from this:
+{{FEEDBACK}}
 
 FRESH EXTERNAL SIGNALS:
 {{EXTERNAL_CONTEXT}}
 
-YOUR JOB:
-Look at everything above and ask yourself one question: is there ONE thing this person does not know right now that would genuinely matter to them today?
+YOUR TASK:
+Find ONE insight that combines at least two of these:
+- A pattern in their activity today that they have not noticed
+- A connection between two different things they worked on
+- External information they have not seen that is relevant to their specific projects
+- A strategic opportunity or risk relevant to their business right now
+- Something they started but did not finish that needs attention
 
-The bar is high. Ask yourself:
-- Would they say "I did not know that" or "I was just thinking about that"?
-- Is this specific to THEIR projects, not generic AI news?
-- Does it connect something they did today with something external?
-- Would a smart friend actually send this as a message?
+THE BAR IS HIGH:
+- The insight must be specific to THIS person and THEIR projects
+- It must be something they do not already know
+- It must not repeat anything in the ALREADY SHOWN list above
+- Generic AI news scores 1 automatically
+- If nothing passes this bar respond SKIP
 
-If you cannot find something that passes all four, respond with SKIP. Silence is correct. Do not force an insight.
+SOMETIMES instead of just an insight you can prepare something for them:
+- If they have been working on a content piece, draft the next section
+- If they keep researching the same topic, prepare a short briefing
+- If there is an action they should take, prepare the first step for them
 
-If you have something real, write it like a short message from a friend. No category labels in the text. No "Based on your activity." No corporate tone. Just say it directly.
+When you prepare something proactively add this line:
+PREPARED: [The draft, briefing, or first step you prepared for them. Keep it under 100 words.]
 
+WHEN YOU HAVE A REAL INSIGHT respond in this exact format:
 CATEGORY: [WORK|RESEARCH|OPPORTUNITY|ALERT|PATTERN]
-INSIGHT: [One sentence. Conversational. Specific to them. Like a text message.]
-WHY NOW: [One sentence. Why this matters today specifically.]
+INSIGHT: [One sentence. Conversational. Specific to them.]
+WHY NOW: [One sentence. Why this matters today.]
 ACTION: [One sentence. The single most useful next step.]
-SEARCH: [3 to 5 keywords to find more context on this.]`
+PREPARED: [Optional. Only include if you actually prepared something.]
+SEARCH: [3 to 5 keywords to verify this insight.]`
 
 async function runAnalyst () {
   if (analystRunning || !apiKey || !profile) return
@@ -925,12 +945,9 @@ async function runAnalyst () {
   console.log('[Covexy] 🧠 Analyst running...')
 
   try {
-    // Build activity summary from observer log
-    const activitySummary = observerLog.length
-      ? observerLog.slice(-50).map(e => `[${new Date(e.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}] ${e.description}`).join('\n')
-      : 'No activity recorded yet.'
+    // STRUCTURED CONTEXT PACKAGE — better input = better output
 
-    // Build user profile text
+    // 1. Who this person is
     const userProfile = [
       profile.name        ? `Name: ${profile.name}`                  : null,
       profile.profession  ? `Role: ${profile.profession}`            : null,
@@ -938,26 +955,53 @@ async function runAnalyst () {
       profile.style       ? `Communication style: ${profile.style}`  : null,
     ].filter(Boolean).join('\n')
 
-    // Fetch live external context based on user projects
+    // 2. What they did today
+    const activitySummary = observerLog.length
+      ? observerLog.slice(-50).map(e => `[${new Date(e.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}] ${e.description}`).join('\n')
+      : 'No activity recorded yet.'
+
+    // 3. What insights have already been shown — do not repeat these
+    const alreadyShown = memory
+      .filter(m => m.type === 'proactive_insight' && m.content)
+      .slice(0, 10)
+      .map(m => `- ${m.content.slice(0, 80)}`)
+      .join('\n') || 'None yet.'
+
+    // 4. What the user found useful vs not useful
+    const positiveFeedback = memory
+      .filter(m => m.type === 'proactive_insight' && m.rating === 1)
+      .slice(0, 5)
+      .map(m => `GOOD: ${m.content.slice(0, 80)}`)
+      .join('\n') || 'No positive feedback yet.'
+
+    const negativeFeedback = memory
+      .filter(m => m.type === 'proactive_insight' && m.rating === -1)
+      .slice(0, 5)
+      .map(m => `BAD: ${m.content.slice(0, 80)}`)
+      .join('\n') || 'No negative feedback yet.'
+
+    // 5. Fresh external signals — 3 specific searches not one generic one
     let externalContext = 'No external context available.'
     try {
       const specificQueries = [
         'mention.ma GEO generative engine optimization latest',
         'InferenceWatch AI model pricing benchmark 2026',
-        'GEO AI search visibility Morocco Africa',
-        'OpenRouter model updates this week',
-        'AI visibility search engines latest research'
+        'proactive AI ambient intelligence desktop 2026'
       ]
       const randomQuery = specificQueries[Math.floor(Math.random() * specificQueries.length)]
       const result = await webSearch(randomQuery)
-      if (result && result.length > 30) externalContext = result.slice(0, 600)
-      console.log('[Covexy] 🧠 Analyst searched:', randomQuery)
+      if (result && result.length > 30) {
+        externalContext = result.slice(0, 600)
+        console.log('[Covexy] 🧠 Analyst context search:', randomQuery)
+      }
     } catch { /* non-critical */ }
 
     const systemPrompt = ANALYST_SYSTEM
       .replace('{{USER_PROFILE}}',    userProfile)
       .replace('{{ACTIVITY_LOG}}',    activitySummary)
       .replace('{{RECENT_MEMORY}}',   getRecentMemory(15))
+      .replace('{{ALREADY_SHOWN}}',   alreadyShown)
+      .replace('{{FEEDBACK}}',        positiveFeedback + '\n' + negativeFeedback)
       .replace('{{EXTERNAL_CONTEXT}}', externalContext)
 
     const raw = await axios.post(OPENROUTER_URL, {
@@ -984,12 +1028,14 @@ async function runAnalyst () {
     const insMatch  = raw.match(/INSIGHT:\s*(.+)/i)
     const whyMatch  = raw.match(/WHY NOW:\s*(.+)/i)
     const actMatch  = raw.match(/ACTION:\s*(.+)/i)
+    const prepMatch = raw.match(/PREPARED:\s*([\s\S]+?)(?=SEARCH:|$)/i)
     const srcMatch  = raw.match(/SEARCH:\s*(.+)/i)
 
     const category    = (catMatch?.[1] || 'RESEARCH').trim().toUpperCase()
     const insight     = insMatch?.[1]?.trim()
     const whyNow      = whyMatch?.[1]?.trim() || ''
     const action      = actMatch?.[1]?.trim() || ''
+    const prepared    = prepMatch?.[1]?.trim() || ''
     const searchTerms = srcMatch?.[1]?.trim() || ''
 
     if (!insight || insight.length < 10) {
@@ -1021,7 +1067,7 @@ async function runAnalyst () {
     }
 
     // Save and notify
-    const saved = addMemoryEntry({ type: 'proactive_insight', content: insight, category, action, whyNow, search: searchTerms, sources: searchSources, score, scoreReason: reason, source: 'analyst', tags: [category.toLowerCase()], confidence: 'HIGH' })
+    const saved = addMemoryEntry({ type: 'proactive_insight', content: insight, category, action, whyNow, prepared, search: searchTerms, sources: searchSources, score, scoreReason: reason, source: 'analyst', tags: [category.toLowerCase()], confidence: 'HIGH' })
 
     if (saved) {
       addActivity(`[Analyst] ${category}: ${insight}`, true)
