@@ -885,6 +885,59 @@ function getInsights () {
   return memory.filter(m => m.type === 'proactive_insight').slice(0, 60)
 }
 
+function getWeeklyPatternSummary () {
+  // Build a structured summary of what the user has been doing across the past 7 days
+  const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+
+  // Get all activity files from the past 7 days
+  const patterns = []
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000)
+    const dateStr = d.toISOString().split('T')[0]
+    const dayLabel = i === 0 ? 'Today' : i === 1 ? 'Yesterday' : dateStr
+    try {
+      const dayActivity = safeRead(actFile(dateStr), [])
+      if (dayActivity.length > 0) {
+        const sample = dayActivity
+          .slice(-5)
+          .map(a => a.description)
+          .filter(Boolean)
+          .join('; ')
+        if (sample) patterns.push(`${dayLabel}: ${sample}`)
+      }
+    } catch { /* non-critical */ }
+  }
+
+  // Get recurring topics from memory across the week
+  const recentInsights = memory
+    .filter(m => m.type === 'proactive_insight' && new Date(m.timestamp).getTime() > sevenDaysAgo)
+    .map(m => m.content)
+    .slice(0, 20)
+
+  // Find words that appear more than once — these are recurring themes
+  const wordCount = {}
+  recentInsights.forEach(insight => {
+    insight.toLowerCase().split(/\W+/).filter(w => w.length > 4).forEach(w => {
+      wordCount[w] = (wordCount[w] || 0) + 1
+    })
+  })
+  const recurringThemes = Object.entries(wordCount)
+    .filter(([, count]) => count > 1)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([word]) => word)
+    .join(', ')
+
+  const summary = patterns.length
+    ? patterns.join('\n')
+    : 'No activity recorded this week yet.'
+
+  return {
+    activityByDay: summary,
+    recurringThemes: recurringThemes || 'No recurring themes detected yet.'
+  }
+}
+
 // ─── Analyst Engine ───────────────────────────────────────────────────────────
 const ANALYST_SYSTEM = `You are the intelligence core of Covexy, a proactive AI assistant running on the user's Mac.
 
@@ -895,6 +948,12 @@ USER PROFILE:
 
 WHAT THEY DID TODAY:
 {{ACTIVITY_LOG}}
+
+WHAT THEY DID THIS WEEK (last 7 days):
+{{WEEKLY_ACTIVITY}}
+
+RECURRING THEMES THIS WEEK:
+{{RECURRING_THEMES}}
 
 RECENT MEMORY:
 {{RECENT_MEMORY}}
@@ -910,11 +969,12 @@ FRESH EXTERNAL SIGNALS:
 
 YOUR TASK:
 Find ONE insight that combines at least two of these:
-- A pattern in their activity today that they have not noticed
-- A connection between two different things they worked on
-- External information they have not seen that is relevant to their specific projects
-- A strategic opportunity or risk relevant to their business right now
-- Something they started but did not finish that needs attention
+- A pattern across multiple days this week that they have not noticed
+- A topic they keep returning to — what does that signal?
+- A connection between something from earlier this week and something external happening now
+- Something they started but did not finish that has become more urgent
+- External information relevant to their specific projects that changes what they should do today
+- A recurring theme in their week that points to an opportunity or risk
 
 THE BAR IS HIGH:
 - The insight must be specific to THIS person and THEIR projects
@@ -960,6 +1020,9 @@ async function runAnalyst () {
       ? observerLog.slice(-50).map(e => `[${new Date(e.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}] ${e.description}`).join('\n')
       : 'No activity recorded yet.'
 
+    // 2b. What they did this week — cross-day pattern awareness
+    const weeklyPattern = getWeeklyPatternSummary()
+
     // 3. What insights have already been shown — do not repeat these
     const alreadyShown = memory
       .filter(m => m.type === 'proactive_insight' && m.content)
@@ -997,12 +1060,14 @@ async function runAnalyst () {
     } catch { /* non-critical */ }
 
     const systemPrompt = ANALYST_SYSTEM
-      .replace('{{USER_PROFILE}}',    userProfile)
-      .replace('{{ACTIVITY_LOG}}',    activitySummary)
-      .replace('{{RECENT_MEMORY}}',   getRecentMemory(15))
-      .replace('{{ALREADY_SHOWN}}',   alreadyShown)
-      .replace('{{FEEDBACK}}',        positiveFeedback + '\n' + negativeFeedback)
-      .replace('{{EXTERNAL_CONTEXT}}', externalContext)
+      .replace('{{USER_PROFILE}}',      userProfile)
+      .replace('{{ACTIVITY_LOG}}',      activitySummary)
+      .replace('{{WEEKLY_ACTIVITY}}',   weeklyPattern.activityByDay)
+      .replace('{{RECURRING_THEMES}}',  weeklyPattern.recurringThemes)
+      .replace('{{RECENT_MEMORY}}',     getRecentMemory(15))
+      .replace('{{ALREADY_SHOWN}}',     alreadyShown)
+      .replace('{{FEEDBACK}}',          positiveFeedback + '\n' + negativeFeedback)
+      .replace('{{EXTERNAL_CONTEXT}}',  externalContext)
 
     const raw = await axios.post(OPENROUTER_URL, {
       model: ANALYST_MODEL,
