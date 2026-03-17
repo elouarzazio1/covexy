@@ -1561,11 +1561,12 @@ app.whenReady().then(() => {
   }
 
   if (process.platform === 'darwin' && app.dock) {
-    const dockIconPath = path.join(__dirname, 'assets', 'covexy-dock.png')
+    const dockIconPath = path.join(__dirname, 'assets', 'covexy.icns')
+    const dockIconFallback = path.join(__dirname, 'assets', 'covexy-dock.png')
     if (fs.existsSync(dockIconPath)) {
       app.dock.setIcon(nativeImage.createFromPath(dockIconPath))
-    } else {
-      console.log('[Covexy] Dock icon not found at:', dockIconPath)
+    } else if (fs.existsSync(dockIconFallback)) {
+      app.dock.setIcon(nativeImage.createFromPath(dockIconFallback))
     }
   }
 
