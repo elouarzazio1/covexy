@@ -153,7 +153,7 @@ function renderInsights () {
           <div class="insight-icon ${c.cls}">${c.icon}</div>
           <div style="flex:1;min-width:0;">
             ${watchlistLabelHtml}
-            <div class="insight-text">${esc(item.content)}</div>
+            <div class="insight-text">${esc(item.content.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1'))}</div>
             ${actionHtml}
             <div class="insight-time">${fmtTime(item.timestamp)}</div>
           </div>

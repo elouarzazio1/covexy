@@ -993,7 +993,7 @@ PREPARED: [The draft, briefing, or first step you prepared for them. Keep it und
 
 WHEN YOU HAVE A REAL INSIGHT respond in this exact format:
 CATEGORY: [WORK|RESEARCH|OPPORTUNITY|ALERT|PATTERN]
-INSIGHT: [One sentence. Conversational. Specific to them.]
+INSIGHT: [Exactly one sentence. Maximum 20 words. No markdown. No asterisks. Direct and specific to this person only.]
 WHY NOW: [One sentence. Why this matters today.]
 ACTION: [One sentence. The single most useful next step.]
 PREPARED: [Optional. Only include if you actually prepared something.]
