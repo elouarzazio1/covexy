@@ -1055,14 +1055,35 @@ async function runAnalyst () {
       return
     }
 
-    // Run search enrichment
+    // Run search enrichment + verification
     let searchResult  = ''
     let searchSources = []
     if (searchTerms) {
       try {
+        // First search: enrich with context
         const found = await webSearchFull(searchTerms)
         if (found.text)    searchResult  = found.text
         if (found.sources) searchSources = found.sources
+        console.log('[Covexy] 🔍 Analyst enrichment search done:', searchTerms)
+
+        // Second search: verify the specific claim before showing it
+        if (searchResult && searchResult.length > 30) {
+          const verifyQuery = `${insight.slice(0, 80)} verify 2026`
+          const verification = await webSearchFull(verifyQuery)
+          console.log('[Covexy] 🔍 Analyst verification search done:', verifyQuery)
+
+          if (!verification.text || verification.text.length < 30) {
+            console.log('[Covexy] ⚠️ Insight could not be verified — adding disclaimer')
+            searchResult = searchResult + ' [Note: limited verification available for this claim — please confirm before acting.]'
+          } else {
+            // Merge verification context into search result
+            searchResult = searchResult + ' | Verified: ' + verification.text.slice(0, 200)
+            if (verification.sources && verification.sources.length > 0) {
+              searchSources = [...searchSources, ...verification.sources].slice(0, 4)
+            }
+            console.log('[Covexy] ✅ Insight verified successfully')
+          }
+        }
       } catch { /* non-critical */ }
     }
 
