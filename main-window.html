@@ -654,10 +654,15 @@ html, body {
         <span class="nav-icon">⚙</span>
         <span>Settings</span>
       </div>
+      <div class="nav-item" id="nav-about" onclick="switchTab('about')">
+        <span class="nav-icon">◎</span>
+        <span>About</span>
+      </div>
     </nav>
 
     <div class="sidebar-footer">
-      <span class="status-dot"></span>Watching your screen
+      <span class="status-dot"></span>Watching your screen<br>
+      <span style="font-size:9px;color:#444444;">Built by Othmane · covexy.com</span>
     </div>
   </div>
 
@@ -796,6 +801,63 @@ html, body {
         </div>
 
         <div class="settings-version" id="settings-version">Covexy</div>
+
+      </div>
+    </div>
+
+    <!-- ── ABOUT PANEL ─────────────────────── -->
+    <div class="panel" id="panel-about">
+      <div class="panel-header">
+        <div class="panel-title">About</div>
+        <div class="panel-sub">Covexy — The AI that acts before you ask</div>
+      </div>
+      <div class="scroll-area" style="-webkit-app-region:no-drag;">
+
+        <div style="text-align:center;padding:28px 0 24px;">
+          <img src="assets/covexy-logo-wr.png" height="28" style="opacity:.9;margin-bottom:16px;" onerror="this.style.display='none'">
+          <div style="font-size:13px;color:#F0F0F0;font-weight:600;margin-bottom:6px;">Covexy</div>
+          <div style="font-size:11px;color:#666666;letter-spacing:.06em;" id="about-version">v1.0.0</div>
+        </div>
+
+        <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:18px 20px;margin-bottom:16px;">
+          <div style="font-size:13px;color:#F0F0F0;line-height:1.6;">
+            Covexy is a proactive AI that runs silently on your Mac and tells you what matters before you think to ask. It watches your screen, understands your context, and speaks up only when it has something that genuinely changes what you do next.
+          </div>
+        </div>
+
+        <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:18px 20px;margin-bottom:16px;">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#666666;margin-bottom:12px;">Roadmap</div>
+          <div style="font-size:12px;color:#888888;line-height:2;">
+            <span style="color:#10B981;">✓</span> &nbsp;v1.0 &nbsp;Core ambient intelligence<br>
+            <span style="color:#666666;">○</span> &nbsp;v1.1 &nbsp;Model selector — choose your AI engine<br>
+            <span style="color:#666666;">○</span> &nbsp;v1.2 &nbsp;Cross-day pattern memory<br>
+            <span style="color:#666666;">○</span> &nbsp;v1.3 &nbsp;Local processing — full privacy mode<br>
+            <span style="color:#666666;">○</span> &nbsp;v2.0 &nbsp;Team intelligence
+          </div>
+        </div>
+
+        <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:18px 20px;margin-bottom:16px;">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#666666;margin-bottom:12px;">Privacy</div>
+          <div style="font-size:12px;color:#888888;line-height:1.7;">
+            Screen observations are processed via OpenRouter to generate insights. No data is stored on external servers, sold, or used for training. Everything else stays on your device.
+          </div>
+        </div>
+
+        <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:18px 20px;margin-bottom:16px;">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#666666;margin-bottom:12px;">Built by</div>
+          <div style="font-size:13px;color:#F0F0F0;font-weight:600;margin-bottom:14px;">Othmane El Ouarzazi</div>
+          <div style="display:flex;gap:12px;">
+            <button onclick="window.electronAPI.openExternal('https://covexy.com')" style="padding:7px 14px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:transparent;color:#888888;font-size:11px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .12s;" onmouseover="this.style.color='#F0F0F0';this.style.borderColor='rgba(255,255,255,.3)'" onmouseout="this.style.color='#888888';this.style.borderColor='rgba(255,255,255,.12)'">🌐 covexy.com</button>
+            <button onclick="window.electronAPI.openExternal('https://www.linkedin.com/company/covexylabs/')" style="padding:7px 14px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:transparent;color:#888888;font-size:11px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .12s;" onmouseover="this.style.color='#F0F0F0';this.style.borderColor='rgba(255,255,255,.3)'" onmouseout="this.style.color='#888888';this.style.borderColor='rgba(255,255,255,.12)'">in LinkedIn</button>
+          </div>
+        </div>
+
+        <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:18px 20px;margin-bottom:24px;">
+          <div style="font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#666666;margin-bottom:12px;">Terms of Use</div>
+          <div style="font-size:11px;color:#666666;line-height:1.7;">
+            Covexy is provided as an open source research project, as is, with no warranties. Screen observations are processed via OpenRouter in real time and are not stored or sold. You are responsible for the API keys you use. By using Covexy you accept these terms.
+          </div>
+        </div>
 
       </div>
     </div>

@@ -587,7 +587,11 @@ async function init () {
   loadChatHistory(chat)
   loadSettingsUI(s)
 
-  if (v) document.getElementById('settings-version').textContent = `Covexy v${v}`
+  if (v) {
+    document.getElementById('settings-version').textContent = `Covexy v${v}`
+    const aboutVersion = document.getElementById('about-version')
+    if (aboutVersion) aboutVersion.textContent = `v${v}`
+  }
 
   // Live push subscriptions
   window.electronAPI.onSwitchTab((tab) => {

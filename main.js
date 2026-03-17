@@ -1327,6 +1327,7 @@ ipcMain.on('toast-open-chat', (_, data) => {
 })
 
 ipcMain.on('close-main-window',    () => mainWindow?.hide())
+ipcMain.on('open-external', (_, url) => { require('electron').shell.openExternal(url) })
 ipcMain.on('minimize-main-window', () => mainWindow?.minimize())
 ipcMain.on('onboarding-complete',  () => {
   onboardingWindow?.close()
