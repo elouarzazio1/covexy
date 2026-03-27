@@ -41,6 +41,7 @@ if (!gotTheLock) {
 // ─── Constants ────────────────────────────────────────────────────────────────
 const MODEL          = 'google/gemini-2.0-flash-001'
 const ANALYST_MODEL  = 'anthropic/claude-sonnet-4-20250514'
+const RESEARCH_MODEL = 'perplexity/sonar'
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const ANALYST_INTERVAL  = 2 * 60 * 60 * 1000   // Analyst runs every 2 hours
 const OBSERVER_MAXLOG   = 200               // Max activity entries kept in memory
@@ -498,6 +499,41 @@ async function webSearchFull (query) {
       response.data.RelatedTopics?.[0]?.Text || ''
     return { text, sources: [] }
   } catch (e) {
+    return { text: '', sources: [] }
+  }
+}
+
+async function perplexitySearch (query) {
+  // Uses Perplexity sonar model via OpenRouter for synthesized answers with citations
+  try {
+    const res = await axios.post(OPENROUTER_URL, {
+      model: RESEARCH_MODEL,
+      messages: [
+        { role: 'system', content: 'You are a research assistant. Provide a concise, factual answer with specific details. Include numbers, dates, and names when available. If you cannot find reliable information, say so clearly.' },
+        { role: 'user', content: query }
+      ]
+    }, {
+      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', ...OPENROUTER_HEADERS },
+      timeout: 15000
+    })
+
+    const content = res.data.choices?.[0]?.message?.content?.trim() || ''
+
+    // Extract citations if available in the response
+    const citations = res.data.citations || []
+    const sources = citations.slice(0, 4).map(url => ({
+      title: '',
+      url: typeof url === 'string' ? url : (url.url || ''),
+      description: ''
+    })).filter(s => s.url)
+
+    if (content && content.length > 20) {
+      console.log('[Covexy] 🔍 Perplexity research:', query.slice(0, 60))
+      return { text: content, sources }
+    }
+    return { text: '', sources: [] }
+  } catch (e) {
+    console.log('[Covexy] Perplexity search failed:', e.message)
     return { text: '', sources: [] }
   }
 }
@@ -1090,15 +1126,18 @@ async function runAnalyst () {
       .map(m => 'BAD: ' + m.content.slice(0, 80))
       .join('\n') || 'No negative feedback yet.'
 
-    // External context search — based on current priority, not hardcoded queries
+    // External context search — uses Perplexity for synthesized answers
     let externalContext = 'No external context available.'
     if (currentJob.type === 'EXTERNAL' && ctx.currentPriority !== 'No clear priority detected') {
       try {
-        const searchQuery = ctx.currentPriority + ' latest news updates 2026'
-        const result = await webSearch(searchQuery)
-        if (result && result.length > 30) {
-          externalContext = result.slice(0, 600)
-          console.log('[Covexy] 🧠 Analyst search:', searchQuery)
+        const searchQuery = 'What are the latest developments, news, or changes related to ' + ctx.currentPriority + ' in the last 7 days?'
+        const result = await perplexitySearch(searchQuery)
+        if (result.text && result.text.length > 30) {
+          externalContext = result.text.slice(0, 800)
+          if (result.sources.length > 0) {
+            externalContext += '\n\nSources: ' + result.sources.map(s => s.url).join(', ')
+          }
+          console.log('[Covexy] 🧠 Analyst research via Perplexity:', searchQuery.slice(0, 60))
         }
       } catch { /* non-critical */ }
     }
@@ -1174,15 +1213,15 @@ async function runAnalyst () {
       return
     }
 
-    // Run search enrichment
+    // Run search enrichment via Perplexity
     let searchResult  = ''
     let searchSources = []
     if (searchTerms) {
       try {
-        const found = await webSearchFull(searchTerms)
+        const found = await perplexitySearch(searchTerms)
         if (found.text)    searchResult  = found.text
         if (found.sources) searchSources = found.sources
-        console.log('[Covexy] 🔍 Analyst enrichment search done:', searchTerms)
+        console.log('[Covexy] 🔍 Analyst enrichment via Perplexity:', searchTerms)
       } catch { /* non-critical */ }
     }
 
