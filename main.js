@@ -1693,6 +1693,25 @@ app.whenReady().then(() => {
     showMainWindow()
     startScanner()
     setTimeout(() => enrichProfileContext(), 6000) // enrich after UI settles
+
+    // Morning briefing — runs once on startup each day
+    setTimeout(() => {
+      if (apiKey && profile) {
+        preparer.runMorningBriefing({
+          axiosPost: axios.post.bind(axios),
+          openRouterUrl: OPENROUTER_URL,
+          apiKey,
+          headers: OPENROUTER_HEADERS,
+          profile,
+          workGraphCtx: workGraph.getAnalystContext(),
+          workGraphStats: workGraph.getTodayStats(),
+          unfinished: workGraph.getUnfinishedSessions(),
+          addMemoryEntry,
+          push,
+          getInsights
+        }).catch(e => console.log('[Covexy] Morning briefing error:', e.message))
+      }
+    }, 20000) // 20 seconds after startup — after Work Graph is built
   }
 })
 

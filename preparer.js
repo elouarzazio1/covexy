@@ -204,8 +204,97 @@ function shouldRunPreparer (stats, lastActivityType) {
   return true
 }
 
+/**
+ * Run a morning briefing. Called once on app startup if it hasn't run today.
+ * Different from the regular Preparer — this always generates a BRIEFING type.
+ */
+let morningBriefingDone = null
+
+async function runMorningBriefing (deps) {
+  const today = new Date().toISOString().split('T')[0]
+  if (morningBriefingDone === today) return
+
+  const { axiosPost, openRouterUrl, apiKey, headers, profile, workGraphCtx, workGraphStats, unfinished, addMemoryEntry, push, getInsights } = deps
+
+  // Need some history to make a useful briefing
+  if (workGraphStats.totalEntries < 3) {
+    console.log('[Covexy] 🌅 Morning briefing: not enough data yet — skipping')
+    morningBriefingDone = today
+    return
+  }
+
+  console.log('[Covexy] 🌅 Running morning briefing...')
+
+  try {
+    const userName = profile?.name || 'the user'
+    const style = profile?.style || 'direct and concise'
+    const ctx = workGraphCtx
+
+    const unfinishedText = (unfinished || [])
+      .map(s => '- ' + s.topic + ' (' + s.durationMinutes + ' min, not returned to)')
+      .join('\n') || 'Nothing left unfinished.'
+
+    const systemPrompt = 'You are Covexy, a proactive AI assistant. Write a morning briefing for ' + userName + '. This is the first thing they see when they open their computer.\n\n' +
+      'Current priority project: ' + ctx.currentPriority + '\n' +
+      'Yesterday summary: ' + ctx.todaySummary + '\n' +
+      'Top topics: ' + ctx.topTopics + '\n' +
+      'Project signals: ' + ctx.projectSignals + '\n' +
+      'Unfinished work:\n' + unfinishedText + '\n' +
+      'Communication style: ' + style + '\n\n' +
+      'Rules:\n' +
+      '- Maximum 4 lines\n' +
+      '- Line 1: What was left unfinished or needs attention\n' +
+      '- Line 2: What the priority should be today based on patterns\n' +
+      '- Line 3: One external thing worth knowing (only if real, do not invent)\n' +
+      '- Line 4: One sentence of encouragement or acknowledgment (not generic)\n' +
+      '- No bullet points. No headers. No markdown. Plain text only.\n' +
+      '- If there is nothing useful to say, respond SKIP'
+
+    const res = await axiosPost(openRouterUrl, {
+      model: PREPARER_MODEL,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: 'Write the morning briefing.' }
+      ]
+    }, {
+      headers: { Authorization: 'Bearer ' + apiKey, 'Content-Type': 'application/json', ...headers },
+      timeout: 30000
+    })
+
+    const content = res.data.choices?.[0]?.message?.content?.trim() || ''
+
+    if (!content || content.length < 20 || /^SKIP/i.test(content)) {
+      console.log('[Covexy] 🌅 Morning briefing: nothing worth saying')
+      morningBriefingDone = today
+      return
+    }
+
+    const saved = addMemoryEntry({
+      type: 'proactive_insight',
+      content: content,
+      category: 'BRIEFING',
+      action: '',
+      whyNow: 'Morning briefing based on your recent activity',
+      source: 'preparer',
+      templateType: 'MORNING_BRIEFING',
+      tags: ['briefing', 'prepared', 'morning'],
+      confidence: 'HIGH'
+    })
+
+    if (saved) {
+      morningBriefingDone = today
+      push('insights-update', getInsights())
+      console.log('[Covexy] 🌅 Morning briefing delivered: ' + content.slice(0, 80))
+    }
+
+  } catch (e) {
+    console.log('[Covexy] 🌅 Morning briefing error:', e.message)
+  }
+}
+
 module.exports = {
   runPreparer,
   shouldRunPreparer,
-  selectTemplate
+  selectTemplate,
+  runMorningBriefing
 }
