@@ -11,6 +11,7 @@ const zlib   = require('zlib')
 const screenshot = require('screenshot-desktop') // fallback capturer
 const { scoreInsight, shouldShowInsight } = require('./intelligence')
 const workGraph = require('./work-graph')
+const preparer = require('./preparer')
 
 // ─── Crash protection ─────────────────────────────────────────────────────────
 const logFile = path.join(app.getPath('userData'), 'covexy-error.log')
@@ -723,6 +724,25 @@ async function analyzeScreen () {
 
     console.log(`[Covexy] 👁  Observer: [${activityData.activityType}] ${activityData.description?.slice(0, 80)}`)
     addActivity(activityData.description || 'Screen observed', false, activityData)
+
+    // Check if Preparer should run (idle detection)
+    const preparerStats = workGraph.getTodayStats()
+    if (preparer.shouldRunPreparer(preparerStats, activityData.activityType)) {
+      preparer.runPreparer({
+        axiosPost: axios.post.bind(axios),
+        openRouterUrl: OPENROUTER_URL,
+        apiKey,
+        headers: OPENROUTER_HEADERS,
+        profile,
+        workGraphCtx: workGraph.getAnalystContext(),
+        workGraphStats: preparerStats,
+        unfinished: workGraph.getUnfinishedSessions(),
+        addMemoryEntry,
+        push,
+        getInsights
+      }).catch(e => console.log('[Covexy] Preparer error:', e.message))
+    }
+
     isProcessing = false
     return
 
