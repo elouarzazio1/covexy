@@ -49,6 +49,12 @@ const OBSERVER_MAXLOG   = 200               // Max activity entries kept in memo
 const APP_VERSION    = '1.1.0'
 const OPENROUTER_HEADERS = { 'HTTP-Referer': 'https://covexy.com', 'X-Title': 'Covexy' }
 
+const SENSITIVITY_LEVELS = {
+  quiet:    { maxToastsPerDay: 1, label: 'Quiet' },
+  balanced: { maxToastsPerDay: 2, label: 'Balanced' },
+  active:   { maxToastsPerDay: 4, label: 'Active' }
+}
+
 // ─── Dock ─────────────────────────────────────────────────────────────────────
 // dock visible intentionally
 
@@ -67,6 +73,8 @@ let watchlistTimer     = null
 let isWatchlistScanning = false
 let driftToastCount     = 0
 let driftToastDate      = null
+let globalToastCount    = 0
+let globalToastDate     = null
 let lastObservedTopic   = null
 let lastObservedType    = null
 let sameScreenCount     = 0
@@ -78,7 +86,7 @@ let whisperAvailable   = false
 let apiKey          = null
 let profile         = null
 let memory          = []
-let settings        = { scanInterval: 180000, memoryDays: 7 }
+let settings        = { scanInterval: 180000, memoryDays: 7, sensitivity: 'balanced' }
 let todayActivity      = []
 let observerLog        = []
 let todayChatHistory = []
@@ -1481,13 +1489,28 @@ function createToastWindow () {
   toastWindow.hide()
 }
 
-function showToast ({ category, insight, whyNow, action, searchResult }) {
+function showToast ({ category, insight, whyNow, action, searchResult, sources }) {
+  // Enforce global sensitivity cap
+  const today = new Date().toISOString().split('T')[0]
+  if (globalToastDate !== today) {
+    globalToastCount = 0
+    globalToastDate = today
+  }
+
+  const level = SENSITIVITY_LEVELS[settings.sensitivity] || SENSITIVITY_LEVELS.balanced
+  if (globalToastCount >= level.maxToastsPerDay) {
+    console.log('[Covexy] 🔇 Toast suppressed — daily cap reached (' + level.label + ': ' + level.maxToastsPerDay + '/day)')
+    return
+  }
+
   if (!toastWindow || toastWindow.isDestroyed()) createToastWindow()
   const { screen } = require('electron')
   const { width } = screen.getPrimaryDisplay().workAreaSize
   toastWindow.setPosition(width - 316, 16)
   toastWindow.webContents.send('show-toast', { category, insight, whyNow, action, searchResult })
-  toastWindow.showInactive()   // never steals focus from the user's active app
+  toastWindow.showInactive()
+  globalToastCount++
+  console.log('[Covexy] 🔔 Toast shown (' + globalToastCount + '/' + level.maxToastsPerDay + ' today)')
 }
 
 // ─── Onboarding window ────────────────────────────────────────────────────────
@@ -1629,6 +1652,22 @@ ipcMain.handle('get-version',         () => APP_VERSION)
 ipcMain.handle('get-work-graph', () => workGraph.getWorkGraph())
 ipcMain.handle('get-analyst-context', () => workGraph.getAnalystContext())
 ipcMain.handle('get-today-stats', () => workGraph.getTodayStats())
+
+ipcMain.handle('get-sensitivity', () => ({
+  current: settings.sensitivity,
+  levels: SENSITIVITY_LEVELS,
+  toastsToday: globalToastCount
+}))
+
+ipcMain.handle('save-sensitivity', (_, level) => {
+  if (SENSITIVITY_LEVELS[level]) {
+    settings.sensitivity = level
+    saveSettings(settings)
+    console.log('[Covexy] Sensitivity set to:', level)
+    return { ok: true }
+  }
+  return { ok: false }
+})
 ipcMain.handle('get-api-key-status',  () => ({ hasKey: !!apiKey }))
 
 ipcMain.handle('send-chat', async (_, msg) => {
