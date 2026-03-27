@@ -63,6 +63,17 @@ function scoreInsight (insightData, profile, aiChat) {
     }
   }
 
+  // RULE 2B: Cross-project contamination
+  // If insight mentions multiple projects but screen activity only involves one, kill it
+  const knownProjects = ['mention.ma', 'mention ma', 'inferencewatch', 'inference watch', 'covexy', 'geo platform', 'geo tracking']
+  const insightProjects = knownProjects.filter(p => fullText.includes(p))
+  const screenProjects = knownProjects.filter(p => (topicDomain || '').toLowerCase().includes(p) || (insightData.description || '').toLowerCase().includes(p))
+
+  if (insightProjects.length >= 2 && screenProjects.length <= 1) {
+    console.log('[Covexy] Score: 0 — cross-project contamination (' + insightProjects.join(', ') + ')')
+    return Promise.resolve({ score: 0, reason: 'Insight forces connection between unrelated projects' })
+  }
+
   // RULE 3: Screen description parroting
   if (topicDomain) {
     const domainWords = topicDomain.toLowerCase().split(/\W+/).filter(w => w.length >= 3)
