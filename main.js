@@ -40,7 +40,7 @@ if (!gotTheLock) {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const MODEL          = 'google/gemini-2.0-flash-001'
-const ANALYST_MODEL  = 'deepseek/deepseek-r1'
+const ANALYST_MODEL  = 'anthropic/claude-sonnet-4-20250514'
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const ANALYST_INTERVAL  = 2 * 60 * 60 * 1000   // Analyst runs every 2 hours
 const OBSERVER_MAXLOG   = 200               // Max activity entries kept in memory
@@ -974,65 +974,55 @@ function getWeeklyPatternSummary () {
 }
 
 // ─── Analyst Engine ───────────────────────────────────────────────────────────
-const ANALYST_SYSTEM = `You are the intelligence core of Covexy, a proactive AI assistant running on the user's Mac.
+const ANALYST_SYSTEM = `You are the Analyst engine of Covexy, a proactive AI assistant running on the user's Mac.
 
-Your job is NOT to describe what is on screen. Your job is to think like a senior analyst who has been watching this person work all day and has access to live external information about their industry.
+You receive structured behavioral data, not raw screen descriptions. Your job is to find ONE insight worth the user's attention, or stay silent.
 
-USER PROFILE:
-{{USER_PROFILE}}
+CURRENT PRIORITY PROJECT: {{CURRENT_PRIORITY}}
 
-WHAT THEY DID TODAY:
-{{ACTIVITY_LOG}}
+TODAY'S BEHAVIORAL SUMMARY:
+{{TODAY_SUMMARY}}
+Deep work ratio: {{DEEP_WORK_RATIO}}
 
-WHAT THEY DID THIS WEEK (last 7 days):
-{{WEEKLY_ACTIVITY}}
+TOP APPS TODAY: {{TOP_APPS}}
+TOP TOPICS TODAY: {{TOP_TOPICS}}
 
-RECURRING THEMES THIS WEEK:
-{{RECURRING_THEMES}}
+CURRENT SESSION: {{CURRENT_SESSION}}
 
-RECENT MEMORY:
-{{RECENT_MEMORY}}
+UNFINISHED WORK (started but abandoned): {{UNFINISHED_WORK}}
 
-INSIGHTS ALREADY SHOWN — DO NOT REPEAT THESE:
-{{ALREADY_SHOWN}}
+RECENT CONTEXT SWITCHES: {{RECENT_DRIFTS}}
 
-USER FEEDBACK — learn from this:
+PROJECT SIGNALS (activity weight): {{PROJECT_SIGNALS}}
+
+USER FEEDBACK ON PAST INSIGHTS:
 {{FEEDBACK}}
 
-FRESH EXTERNAL SIGNALS:
+INSIGHTS ALREADY SHOWN — DO NOT REPEAT:
+{{ALREADY_SHOWN}}
+
+FRESH EXTERNAL INFORMATION:
 {{EXTERNAL_CONTEXT}}
 
-YOUR TASK:
-Find ONE insight that combines at least two of these:
-- A pattern across multiple days this week that they have not noticed
-- A topic they keep returning to — what does that signal?
-- A connection between something from earlier this week and something external happening now
-- Something they started but did not finish that has become more urgent
-- External information relevant to their specific projects that changes what they should do today
-- A recurring theme in their week that points to an opportunity or risk
+YOUR SPECIFIC JOB THIS RUN: {{JOB_TYPE}}
 
-THE BAR IS HIGH:
-- The insight must be specific to THIS person and THEIR projects
-- It must be something they do not already know
-- It must not repeat anything in the ALREADY SHOWN list above
-- Generic AI news scores 1 automatically
-- If nothing passes this bar respond SKIP
+RULES:
+1. Your insight MUST relate to the CURRENT PRIORITY PROJECT unless the job type specifically asks otherwise
+2. NEVER connect two different projects unless the user's screen activity involves both right now
+3. NEVER describe what the user is doing. They know what they are doing.
+4. NEVER give generic productivity advice
+5. If the behavioral data shows LEISURE or TRANSIT as the dominant activity, respond SKIP
+6. If you are not 90% confident the insight is worth interrupting the user, respond SKIP
+7. Silence is correct behavior. SKIP is always acceptable.
 
-SOMETIMES instead of just an insight you can prepare something for them:
-- If they have been working on a content piece, draft the next section
-- If they keep researching the same topic, prepare a short briefing
-- If there is an action they should take, prepare the first step for them
-
-When you prepare something proactively add this line:
-PREPARED: [The draft, briefing, or first step you prepared for them. Keep it under 100 words.]
-
-WHEN YOU HAVE A REAL INSIGHT respond in this exact format:
+WHEN YOU HAVE A REAL INSIGHT respond in this exact format only:
 CATEGORY: [WORK|RESEARCH|OPPORTUNITY|ALERT|PATTERN]
-INSIGHT: [Exactly one sentence. Maximum 20 words. No markdown. No asterisks. Direct and specific to this person only.]
+INSIGHT: [One sentence. Maximum 20 words. No markdown. No asterisks.]
 WHY NOW: [One sentence. Why this matters today.]
 ACTION: [One sentence. The single most useful next step.]
-PREPARED: [Optional. Only include if you actually prepared something.]
-SEARCH: [3 to 5 keywords to verify this insight.]`
+SEARCH: [3 to 5 keywords to verify this insight.]
+
+If nothing passes the bar, respond with only: SKIP`
 
 async function runAnalyst () {
   if (analystRunning || !apiKey || !profile) return
@@ -1040,75 +1030,100 @@ async function runAnalyst () {
   console.log('[Covexy] 🧠 Analyst running...')
 
   try {
-    // STRUCTURED CONTEXT PACKAGE — better input = better output
+    // Get structured context from Work Graph
+    const ctx = workGraph.getAnalystContext()
 
-    // 1. Who this person is
-    const userProfile = [
-      profile.name        ? `Name: ${profile.name}`                  : null,
-      profile.profession  ? `Role: ${profile.profession}`            : null,
-      profile.projects    ? `Projects: ${profile.projects}`          : null,
-      profile.style       ? `Communication style: ${profile.style}`  : null,
-    ].filter(Boolean).join('\n')
+    // Skip if today is mostly leisure
+    const stats = workGraph.getTodayStats()
+    const totalWork = stats.deepWorkMinutes + stats.researchMinutes + stats.communicationMinutes + stats.adminMinutes
+    if (stats.leisureMinutes > totalWork && stats.totalEntries > 5) {
+      console.log('[Covexy] 🧠 Analyst: mostly leisure today — skipping')
+      analystRunning = false
+      return
+    }
 
-    // 2. What they did today
-    const activitySummary = observerLog.length
-      ? observerLog.slice(-50).map(e => `[${new Date(e.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}] ${e.description}`).join('\n')
-      : 'No activity recorded yet.'
+    // Refresh priority inference
+    workGraph.inferPriority(DATA_DIR, actFile)
 
-    // 2b. What they did this week — cross-day pattern awareness
-    const weeklyPattern = getWeeklyPatternSummary()
+    // Rotating job system — each run has one specific task
+    const jobs = [
+      {
+        type: 'PATTERN',
+        instruction: 'Look for a pattern across this week that the user has not noticed. What do the recurring topics and time allocation tell you? Only surface if the pattern reveals something actionable.'
+      },
+      {
+        type: 'UNFINISHED',
+        instruction: 'Look at the unfinished work sessions. Is there something the user started but did not return to that has become more important or urgent? Only surface if returning to it would change what they do today.'
+      },
+      {
+        type: 'EXTERNAL',
+        instruction: 'Based on the current priority project, find ONE external signal (news, competitor move, tool update, market shift) that would change what the user does next. The signal must be specific and verifiable. Do not invent information.'
+      },
+      {
+        type: 'CONTRADICTION',
+        instruction: 'Compare what the user says their priority is (from project signals) with how they actually spend their time (from today summary). If there is a gap between stated priority and actual behavior, surface it. If they are aligned, respond SKIP.'
+      }
+    ]
 
-    // 3. What insights have already been shown — do not repeat these
+    // Pick job based on rotation — use hour of day modulo job count
+    const jobIndex = new Date().getHours() % jobs.length
+    const currentJob = jobs[jobIndex]
+    console.log('[Covexy] 🧠 Analyst job:', currentJob.type)
+
+    // Build already-shown list
     const alreadyShown = memory
       .filter(m => m.type === 'proactive_insight' && m.content)
       .slice(0, 10)
-      .map(m => `- ${m.content.slice(0, 80)}`)
+      .map(m => '- ' + m.content.slice(0, 80))
       .join('\n') || 'None yet.'
 
-    // 4. What the user found useful vs not useful
+    // Build feedback
     const positiveFeedback = memory
       .filter(m => m.type === 'proactive_insight' && m.rating === 1)
       .slice(0, 5)
-      .map(m => `GOOD: ${m.content.slice(0, 80)}`)
+      .map(m => 'GOOD: ' + m.content.slice(0, 80))
       .join('\n') || 'No positive feedback yet.'
 
     const negativeFeedback = memory
       .filter(m => m.type === 'proactive_insight' && m.rating === -1)
       .slice(0, 5)
-      .map(m => `BAD: ${m.content.slice(0, 80)}`)
+      .map(m => 'BAD: ' + m.content.slice(0, 80))
       .join('\n') || 'No negative feedback yet.'
 
-    // 5. Fresh external signals — 3 specific searches not one generic one
+    // External context search — based on current priority, not hardcoded queries
     let externalContext = 'No external context available.'
-    try {
-      const specificQueries = [
-        'mention.ma GEO generative engine optimization latest',
-        'InferenceWatch AI model pricing benchmark 2026',
-        'proactive AI ambient intelligence desktop 2026'
-      ]
-      const randomQuery = specificQueries[Math.floor(Math.random() * specificQueries.length)]
-      const result = await webSearch(randomQuery)
-      if (result && result.length > 30) {
-        externalContext = result.slice(0, 600)
-        console.log('[Covexy] 🧠 Analyst context search:', randomQuery)
-      }
-    } catch { /* non-critical */ }
+    if (currentJob.type === 'EXTERNAL' && ctx.currentPriority !== 'No clear priority detected') {
+      try {
+        const searchQuery = ctx.currentPriority + ' latest news updates 2026'
+        const result = await webSearch(searchQuery)
+        if (result && result.length > 30) {
+          externalContext = result.slice(0, 600)
+          console.log('[Covexy] 🧠 Analyst search:', searchQuery)
+        }
+      } catch { /* non-critical */ }
+    }
 
+    // Build the prompt from Work Graph context
     const systemPrompt = ANALYST_SYSTEM
-      .replace('{{USER_PROFILE}}',      userProfile)
-      .replace('{{ACTIVITY_LOG}}',      activitySummary)
-      .replace('{{WEEKLY_ACTIVITY}}',   weeklyPattern.activityByDay)
-      .replace('{{RECURRING_THEMES}}',  weeklyPattern.recurringThemes)
-      .replace('{{RECENT_MEMORY}}',     getRecentMemory(15))
-      .replace('{{ALREADY_SHOWN}}',     alreadyShown)
+      .replace('{{CURRENT_PRIORITY}}',  ctx.currentPriority)
+      .replace('{{TODAY_SUMMARY}}',     ctx.todaySummary)
+      .replace('{{DEEP_WORK_RATIO}}',   ctx.deepWorkRatio)
+      .replace('{{TOP_APPS}}',          ctx.topApps)
+      .replace('{{TOP_TOPICS}}',        ctx.topTopics)
+      .replace('{{CURRENT_SESSION}}',   ctx.currentSession)
+      .replace('{{UNFINISHED_WORK}}',   ctx.unfinishedWork)
+      .replace('{{RECENT_DRIFTS}}',     ctx.recentDrifts)
+      .replace('{{PROJECT_SIGNALS}}',   ctx.projectSignals)
       .replace('{{FEEDBACK}}',          positiveFeedback + '\n' + negativeFeedback)
+      .replace('{{ALREADY_SHOWN}}',     alreadyShown)
       .replace('{{EXTERNAL_CONTEXT}}',  externalContext)
+      .replace('{{JOB_TYPE}}',          currentJob.instruction)
 
     const raw = await axios.post(OPENROUTER_URL, {
       model: ANALYST_MODEL,
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user',   content: 'Analyze everything and surface the single most valuable insight right now. If nothing is worthy, respond SKIP.' }
+        { role: 'user',   content: 'Run your assigned job. If nothing passes the bar, respond SKIP.' }
       ]
     }, {
       headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json', ...OPENROUTER_HEADERS },
@@ -1128,14 +1143,12 @@ async function runAnalyst () {
     const insMatch  = raw.match(/INSIGHT:\s*(.+)/i)
     const whyMatch  = raw.match(/WHY NOW:\s*(.+)/i)
     const actMatch  = raw.match(/ACTION:\s*(.+)/i)
-    const prepMatch = raw.match(/PREPARED:\s*([\s\S]+?)(?=SEARCH:|$)/i)
     const srcMatch  = raw.match(/SEARCH:\s*(.+)/i)
 
     const category    = (catMatch?.[1] || 'RESEARCH').trim().toUpperCase()
     const insight     = insMatch?.[1]?.trim()
     const whyNow      = whyMatch?.[1]?.trim() || ''
     const action      = actMatch?.[1]?.trim() || ''
-    const prepared    = prepMatch?.[1]?.trim() || ''
     const searchTerms = srcMatch?.[1]?.trim() || ''
 
     if (!insight || insight.length < 10) {
@@ -1144,60 +1157,46 @@ async function runAnalyst () {
       return
     }
 
-    // Score the insight before doing anything with it
-    const { score, reason } = await scoreInsight({ insight, whyNow, action, category }, profile, aiChat)
-    console.log(`[Covexy] 🎯 Analyst insight scored ${score}/10 — ${reason}`)
+    // Score the insight — pass activity context to the scorer
+    const lastActivity = observerLog.length > 0 ? observerLog[observerLog.length - 1] : {}
+    const { score, reason } = await scoreInsight({
+      insight, whyNow, action, category,
+      activityType: lastActivity.activityType || null,
+      topicDomain: lastActivity.topicDomain || null,
+      isWorkRelated: lastActivity.isWorkRelated ?? null
+    }, profile, aiChat)
+    console.log('[Covexy] 🎯 Analyst insight scored ' + score + '/10 — ' + reason)
 
     if (!shouldShowInsight(score)) {
-      console.log(`[Covexy] 🚫 Analyst insight below threshold — logging silently`)
-      addMemoryEntry({ type: 'proactive_insight', content: insight, category, action, whyNow, score, scoreReason: reason, source: 'analyst', tags: [category.toLowerCase()] })
+      console.log('[Covexy] 🚫 Analyst insight below threshold — logging silently')
+      addMemoryEntry({ type: 'proactive_insight', content: insight, category, action, whyNow, score, scoreReason: reason, source: 'analyst', job: currentJob.type, tags: [category.toLowerCase()] })
       analystRunning = false
       return
     }
 
-    // Run search enrichment + verification
+    // Run search enrichment
     let searchResult  = ''
     let searchSources = []
     if (searchTerms) {
       try {
-        // First search: enrich with context
         const found = await webSearchFull(searchTerms)
         if (found.text)    searchResult  = found.text
         if (found.sources) searchSources = found.sources
         console.log('[Covexy] 🔍 Analyst enrichment search done:', searchTerms)
-
-        // Second search: verify the specific claim before showing it
-        if (searchResult && searchResult.length > 30) {
-          const verifyQuery = `${insight.slice(0, 80)} verify 2026`
-          const verification = await webSearchFull(verifyQuery)
-          console.log('[Covexy] 🔍 Analyst verification search done:', verifyQuery)
-
-          if (!verification.text || verification.text.length < 30) {
-            console.log('[Covexy] ⚠️ Insight could not be verified — adding disclaimer')
-            searchResult = searchResult + ' [Note: limited verification available for this claim — please confirm before acting.]'
-          } else {
-            // Merge verification context into search result
-            searchResult = searchResult + ' | Verified: ' + verification.text.slice(0, 200)
-            if (verification.sources && verification.sources.length > 0) {
-              searchSources = [...searchSources, ...verification.sources].slice(0, 4)
-            }
-            console.log('[Covexy] ✅ Insight verified successfully')
-          }
-        }
       } catch { /* non-critical */ }
     }
 
     // Save and notify
-    const saved = addMemoryEntry({ type: 'proactive_insight', content: insight, category, action, whyNow, prepared, search: searchTerms, sources: searchSources, score, scoreReason: reason, source: 'analyst', tags: [category.toLowerCase()], confidence: 'HIGH' })
+    const saved = addMemoryEntry({ type: 'proactive_insight', content: insight, category, action, whyNow, search: searchTerms, sources: searchSources, score, scoreReason: reason, source: 'analyst', job: currentJob.type, tags: [category.toLowerCase()], confidence: 'HIGH' })
 
     if (saved) {
-      addActivity(`[Analyst] ${category}: ${insight}`, true)
+      addActivity('[Analyst] ' + category + ': ' + insight, true)
       push('insights-update', getInsights())
 
       if (Date.now() - lastNotifTime >= 2 * 60 * 60 * 1000) {
         lastNotifTime = Date.now()
         showToast({ category, insight, whyNow, action, searchResult, sources: searchSources })
-        console.log(`[Covexy] 🧠 Analyst insight delivered: ${insight.slice(0, 80)}`)
+        console.log('[Covexy] 🧠 Analyst insight delivered: ' + insight.slice(0, 80))
       } else {
         console.log('[Covexy] 🧠 Analyst insight saved — cooldown active, no toast')
       }
