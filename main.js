@@ -65,6 +65,13 @@ let analystTimer       = null
 let analystRunning     = false
 let watchlistTimer     = null
 let isWatchlistScanning = false
+let driftToastCount     = 0
+let driftToastDate      = null
+let lastObservedTopic   = null
+let lastObservedType    = null
+let sameScreenCount     = 0
+let leisureStreakCount   = 0
+let lastDeepWorkTopic   = null
 let whisperAvailable   = false
 
 // ─── In-memory data ────────────────────────────────────────────────────────────
@@ -724,6 +731,80 @@ async function analyzeScreen () {
 
     console.log(`[Covexy] 👁  Observer: [${activityData.activityType}] ${activityData.description?.slice(0, 80)}`)
     addActivity(activityData.description || 'Screen observed', false, activityData)
+
+    // ── Drift Detection ──────────────────────────────────────────────
+    // Reset daily toast counter
+    const driftToday = new Date().toISOString().split('T')[0]
+    if (driftToastDate !== driftToday) {
+      driftToastCount = 0
+      driftToastDate = driftToday
+    }
+
+    // Maximum 2 drift toasts per day
+    const canShowDriftToast = driftToastCount < 2 && (Date.now() - lastNotifTime > 30 * 60 * 1000)
+
+    const currentTopic = (activityData.topicDomain || 'unknown').toLowerCase()
+    const currentType = activityData.activityType
+
+    // STALL DETECTOR: same topic for 20+ minutes (7 consecutive scans at 3-min intervals)
+    if (currentTopic === lastObservedTopic && currentType === lastObservedType) {
+      sameScreenCount++
+    } else {
+      sameScreenCount = 1
+    }
+
+    if (sameScreenCount >= 7 && canShowDriftToast && (currentType === 'DEEP_WORK' || currentType === 'RESEARCH')) {
+      driftToastCount++
+      lastNotifTime = Date.now()
+      sameScreenCount = 0
+      showToast({
+        category: 'PATTERN',
+        insight: 'You have been on ' + currentTopic + ' for over 20 minutes. Stuck or focused?',
+        whyNow: 'Same screen detected for ' + (sameScreenCount * 3) + '+ minutes',
+        action: 'If stuck, try breaking the problem into smaller pieces or switching context briefly'
+      })
+      console.log('[Covexy] 🔍 Stall detector fired: ' + currentTopic)
+    }
+
+    // RABBIT HOLE ALERT: leisure apps for 15+ minutes (5 consecutive scans)
+    const leisureApps = ['youtube', 'twitter', 'reddit', 'x.com', 'tiktok', 'instagram', 'facebook', 'netflix']
+    const isLeisureApp = leisureApps.some(app => (activityData.appName || '').toLowerCase().includes(app) || currentTopic.includes(app))
+
+    if (currentType === 'LEISURE' || isLeisureApp) {
+      leisureStreakCount++
+    } else {
+      if (currentType === 'DEEP_WORK') {
+        lastDeepWorkTopic = currentTopic
+      }
+      leisureStreakCount = 0
+    }
+
+    if (leisureStreakCount >= 5 && canShowDriftToast && lastDeepWorkTopic) {
+      driftToastCount++
+      lastNotifTime = Date.now()
+      leisureStreakCount = 0
+      showToast({
+        category: 'ALERT',
+        insight: 'You have been browsing for 15+ minutes. Before this you were working on ' + lastDeepWorkTopic + '.',
+        whyNow: 'Rabbit hole detected after deep work session',
+        action: 'Return to ' + lastDeepWorkTopic + ' or take an intentional break'
+      })
+      console.log('[Covexy] 🕳  Rabbit hole alert fired. Last work: ' + lastDeepWorkTopic)
+    }
+
+    // CONTEXT SWITCH WARNING: deep work to leisure transition
+    if (lastObservedType === 'DEEP_WORK' && (currentType === 'LEISURE' || isLeisureApp) && canShowDriftToast) {
+      // Don't fire immediately — this is logged for the next check
+      console.log('[Covexy] ⚡ Context switch detected: DEEP_WORK -> ' + currentType)
+    }
+
+    // Track for next cycle
+    if (currentType === 'DEEP_WORK') {
+      lastDeepWorkTopic = currentTopic
+    }
+    lastObservedTopic = currentTopic
+    lastObservedType = currentType
+    // ── End Drift Detection ──────────────────────────────────────────
 
     // Check if Preparer should run (idle detection)
     const preparerStats = workGraph.getTodayStats()
