@@ -8,28 +8,32 @@ let currentSettings = {}
 const expandedCards = new Set()
 
 // ── Category config ───────────────────────────────────────────────────────────
-const CAT = {
-  // New categories
-  life:     { icon: '◎', cls: 'life'     },
-  work:     { icon: '◈', cls: 'work'     },
-  travel:   { icon: '✈', cls: 'travel'   },
-  health:   { icon: '♡', cls: 'health'   },
-  social:   { icon: '◇', cls: 'social'   },
-  creative: { icon: '✦', cls: 'creative' },
-  finance:  { icon: '◐', cls: 'finance'  },
-  alert:    { icon: '⚠', cls: 'alert'    },
-  idea:     { icon: '◈', cls: 'idea'     },
-  // Legacy categories
-  email:    { icon: '✉', cls: 'email'    },
-  task:     { icon: '✓', cls: 'task'     },
-  research: { icon: '⊞', cls: 'research' },
-  focus:    { icon: '◉', cls: 'focus'    },
-  writing:  { icon: '✍', cls: 'writing'  },
-}
-
 function catFor (item) {
   const raw = (item.category || item.tags?.[0] || '').toLowerCase().trim()
-  return CAT[raw] || CAT.focus
+  const map = {
+    work:        { icon: '◆', cls: 'cat-work' },
+    research:    { icon: '◎', cls: 'cat-research' },
+    opportunity: { icon: '◈', cls: 'cat-opportunity' },
+    alert:       { icon: '△', cls: 'cat-alert' },
+    pattern:     { icon: '◇', cls: 'cat-pattern' },
+    briefing:    { icon: '☀', cls: 'cat-briefing' },
+    summary:     { icon: '▣', cls: 'cat-summary' },
+    draft:       { icon: '✎', cls: 'cat-draft' },
+    reminder:    { icon: '⏎', cls: 'cat-reminder' },
+    connection:  { icon: '⟷', cls: 'cat-connection' },
+    idea:        { icon: '◈', cls: 'cat-idea' },
+    life:        { icon: '●', cls: 'cat-life' },
+    travel:      { icon: '◎', cls: 'cat-travel' },
+    health:      { icon: '●', cls: 'cat-health' },
+    social:      { icon: '◈', cls: 'cat-social' },
+    creative:    { icon: '◇', cls: 'cat-creative' },
+    finance:     { icon: '◎', cls: 'cat-finance' },
+    email:       { icon: '◎', cls: 'cat-email' },
+    task:        { icon: '◆', cls: 'cat-task' },
+    focus:       { icon: '◎', cls: 'cat-focus' },
+    writing:     { icon: '●', cls: 'cat-writing' },
+  }
+  return map[raw] || { icon: '◆', cls: 'cat-work' }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -67,6 +71,35 @@ function switchTab (tab) {
 }
 
 // ── Render insights ───────────────────────────────────────────────────────────
+function copyInsight (cardId) {
+  const item = insights.find(i => (i.timestamp || i.id) === cardId)
+  if (!item) return
+  const text = [
+    item.content || '',
+    item.action ? 'Action: ' + item.action : '',
+    item.whyNow ? 'Why now: ' + item.whyNow : ''
+  ].filter(Boolean).join('\n')
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector(`.insight-card[data-card-id="${cardId}"] .insight-action-btn`)
+    if (btn) {
+      btn.textContent = 'Copied!'
+      btn.classList.add('copied')
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied') }, 1500)
+    }
+  })
+}
+
+function openInChat (cardId) {
+  const item = insights.find(i => (i.timestamp || i.id) === cardId)
+  if (!item) return
+  switchTab('chat')
+  const chatInput = document.getElementById('chat-input')
+  if (chatInput) {
+    chatInput.value = 'Tell me more about this: ' + (item.content || '')
+    chatInput.focus()
+  }
+}
+
 function openSource (el) {
   const url = el.getAttribute('data-href')
   if (url) window.electronAPI.openExternal(url)
@@ -147,13 +180,25 @@ function renderInsights () {
       ? `<div style="font-size:10px;color:#777777;font-weight:500;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">${esc(item.watchlistTopic)}</div>`
       : ''
 
+    const scoreVal = item.score || 0
+    const scoreBadge = scoreVal >= 8
+      ? `<span class="insight-score-badge insight-score-high">${scoreVal}/10</span>`
+      : scoreVal >= 5
+        ? `<span class="insight-score-badge insight-score-medium">${scoreVal}/10</span>`
+        : ''
+
+    const preparedTag = (item.source === 'preparer' || item.templateType)
+      ? `<div class="insight-prepared-tag">${esc(item.templateType || 'PREPARED')}</div>`
+      : ''
+
     return `
       <div class="insight-card" data-card-id="${cardId}" onclick="toggleCard('${cardId}')">
         <div class="insight-card-header">
           <div class="insight-icon ${c.cls}">${c.icon}</div>
           <div style="flex:1;min-width:0;">
             ${watchlistLabelHtml}
-            <div class="insight-text">${esc(item.content.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1'))}</div>
+            ${preparedTag}
+            <div class="insight-text">${esc(item.content.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1'))}${scoreBadge}</div>
             ${actionHtml}
             <div class="insight-time">${fmtTime(item.timestamp)}</div>
           </div>
@@ -165,6 +210,10 @@ function renderInsights () {
         </div>
         <div class="insight-expanded-body">
           ${whyNowHtml}
+          <div class="insight-actions-row">
+            <button class="insight-action-btn" onclick="event.stopPropagation();copyInsight('${cardId}')" title="Copy insight">Copy</button>
+            <button class="insight-action-btn" onclick="event.stopPropagation();openInChat('${cardId}')" title="Open in Chat">Open in Chat</button>
+          </div>
           <hr class="insight-divider">
           ${sourcesHtml}
           <button class="insight-show-less" onclick="event.stopPropagation();toggleCard('${cardId}')">Show less ▴</button>
@@ -586,6 +635,7 @@ async function init () {
   renderMemory()
   loadChatHistory(chat)
   loadSettingsUI(s)
+  loadSensitivity()
 
   if (v) {
     document.getElementById('settings-version').textContent = `Covexy v${v}`
@@ -626,6 +676,24 @@ async function init () {
     input.value = insight
     autoResize(input)
   })
+}
+
+async function setSensitivity (level) {
+  await window.electronAPI.saveSensitivity(level)
+  document.querySelectorAll('.sensitivity-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.level === level)
+  })
+}
+
+async function loadSensitivity () {
+  try {
+    const data = await window.electronAPI.getSensitivity()
+    if (data && data.current) {
+      document.querySelectorAll('.sensitivity-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.level === data.current)
+      })
+    }
+  } catch {}
 }
 
 init()

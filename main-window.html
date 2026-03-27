@@ -42,6 +42,13 @@ body {
   --c-finance:  #06B6D4;  --c-finance-bg:  rgba(6,182,212,0.12);
   --c-alert:    #EF4444;  --c-alert-bg:    rgba(239,68,68,0.12);
   --c-idea:     #F59E0B;  --c-idea-bg:     rgba(245,158,11,0.12);
+  --c-opportunity: #10B981; --c-opportunity-bg: rgba(16,185,129,0.12);
+  --c-pattern:  #A855F7;  --c-pattern-bg:  rgba(168,85,247,0.12);
+  --c-briefing: #3B82F6;  --c-briefing-bg: rgba(59,130,246,0.12);
+  --c-summary:  #6B7280;  --c-summary-bg:  rgba(107,114,128,0.12);
+  --c-draft:    #F59E0B;  --c-draft-bg:    rgba(245,158,11,0.12);
+  --c-reminder: #EF4444;  --c-reminder-bg: rgba(239,68,68,0.12);
+  --c-connection: #06B6D4; --c-connection-bg: rgba(6,182,212,0.12);
   /* Legacy category colors */
   --c-email:    #3B82F6;  --c-email-bg:    rgba(59,130,246,0.12);
   --c-task:     #8B8B8B;  --c-task-bg:     rgba(139,139,139,0.12);
@@ -623,6 +630,119 @@ html, body {
   margin-right: 4px;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── V2 UI additions ─────────────────────────────────────── */
+.insight-actions-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  -webkit-app-region: no-drag;
+}
+
+.insight-action-btn {
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-bright);
+  background: var(--surface);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  -webkit-app-region: no-drag;
+}
+
+.insight-action-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.insight-action-btn.copied {
+  background: rgba(16,185,129,0.15);
+  color: #10B981;
+  border-color: rgba(16,185,129,0.3);
+}
+
+.insight-score-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.insight-score-high {
+  background: rgba(16,185,129,0.15);
+  color: #10B981;
+}
+
+.insight-score-medium {
+  background: rgba(245,158,11,0.15);
+  color: #F59E0B;
+}
+
+.insight-source-link {
+  color: #3B82F6 !important;
+  text-decoration: underline !important;
+  cursor: pointer !important;
+}
+
+.insight-source-link:hover {
+  color: #60A5FA !important;
+}
+
+.insight-prepared-tag {
+  display: inline-block;
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(59,130,246,0.15);
+  color: #3B82F6;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+/* Sensitivity setting */
+.sensitivity-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.sensitivity-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-bright);
+  background: var(--surface);
+  color: var(--text-dim);
+  font-size: 12px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+  -webkit-app-region: no-drag;
+}
+
+.sensitivity-btn:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.sensitivity-btn.active {
+  background: rgba(196,75,43,0.15);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.sensitivity-label {
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 4px;
+  text-align: center;
+}
+
 </style>
 </head>
 <body>
@@ -799,6 +919,25 @@ html, body {
             <button class="settings-btn danger" onclick="clearMemoryConfirm()">🗑 Clear Memory</button>
           </div>
         </div>
+
+<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+  <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px;">Notification Sensitivity</div>
+  <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;">Controls how many notifications Covexy shows per day</div>
+  <div class="sensitivity-row" id="sensitivity-row">
+    <div>
+      <button class="sensitivity-btn" data-level="quiet" onclick="setSensitivity('quiet')">Quiet</button>
+      <div class="sensitivity-label">1/day</div>
+    </div>
+    <div>
+      <button class="sensitivity-btn active" data-level="balanced" onclick="setSensitivity('balanced')">Balanced</button>
+      <div class="sensitivity-label">2/day</div>
+    </div>
+    <div>
+      <button class="sensitivity-btn" data-level="active" onclick="setSensitivity('active')">Active</button>
+      <div class="sensitivity-label">4/day</div>
+    </div>
+  </div>
+</div>
 
         <div class="settings-version" id="settings-version">Covexy</div>
 

@@ -28,6 +28,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveTimezone:      (tz)   => ipcRenderer.invoke('save-timezone', tz),
   getTavilyUsage:    ()     => ipcRenderer.invoke('get-tavily-usage'),
   saveWatchlist:     (list) => ipcRenderer.invoke('save-watchlist', list),
+  getSensitivity:    ()     => ipcRenderer.invoke('get-sensitivity'),
+  saveSensitivity:   (lvl)  => ipcRenderer.invoke('save-sensitivity', lvl),
+  getWorkGraph:      ()     => ipcRenderer.invoke('get-work-graph'),
+  getAnalystContext:  ()    => ipcRenderer.invoke('get-analyst-context'),
+  getTodayStats:     ()     => ipcRenderer.invoke('get-today-stats'),
 
   // ── Push subscriptions ───────────────────────────────────────
   onSwitchTab:       (cb) => ipcRenderer.on('switch-tab',       (_, d) => cb(d)),
