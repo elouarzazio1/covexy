@@ -1,75 +1,138 @@
 'use strict'
 
-const RELEVANCE_THRESHOLD = 9
+/**
+ * Covexy V2 Deterministic Scorer
+ *
+ * No LLM calls. No profile keywords. Pure rule engine.
+ * An insight either passes hard rules or it dies.
+ */
 
-const SCORE_SYSTEM = `You are a relevance judge for a proactive AI assistant called Covexy. Covexy watches a user's screen and generates insights. Your job is to score each insight on a scale of 1 to 10 based on how genuinely useful it is RIGHT NOW for this specific person.
+const RELEVANCE_THRESHOLD = 7
 
-USER CONTEXT:
-{{USER_CONTEXT}}
+const BLOCKED_ACTIVITIES = ['LEISURE', 'TRANSIT']
 
-SCORING RULES:
-10 = The user would stop what they are doing to act on this immediately
-8-9 = Clearly useful, directly connected to what they are working on right now
-6-7 = Somewhat relevant but they probably already know this or it can wait
-4-5 = Generic, vague, or only loosely connected to their current screen
-1-3 = Obvious, unhelpful, or something they definitely already know
+function extractProfileKeywords (profile) {
+  if (!profile) return []
+  const text = [
+    profile.name || '',
+    profile.profession || '',
+    profile.projects || '',
+    profile.ignore || ''
+  ].join(' ').toLowerCase()
+  const words = text.split(/[\s,.|;:\/\-()]+/).filter(w => w.length >= 4)
+  return [...new Set(words)]
+}
 
-PENALIZE HEAVILY (score 1-3) if the insight:
-- Describes something already visible on screen
-- Gives generic productivity advice
-- Repeats common knowledge
-- Has no connection to the user's specific projects or current activity
+function scoreInsight (insightData, profile, aiChat) {
+  const insight = insightData.insight || ''
+  const whyNow = insightData.whyNow || ''
+  const action = insightData.action || ''
+  const category = (insightData.category || '').toUpperCase()
+  const activityType = insightData.activityType || null
+  const topicDomain = insightData.topicDomain || null
+  const isWorkRelated = insightData.isWorkRelated
 
-REWARD (score 8-10) if the insight:
-- References something the user is actively working on right now
-- Contains information the user likely does NOT already know
-- Has a clear specific actionable next step
-- Is time-sensitive or would change what the user does in the next 10 minutes
-- Connects something the user actually did today with external information they have not seen
-- Is specific enough that it could only apply to THIS person, not any founder
-- Would make the user stop what they are doing and act on it immediately
-- Generic AI news, GEO definitions, or funding advice scores 1 automatically regardless of relevance
+  const fullText = (insight + ' ' + whyNow + ' ' + action).toLowerCase()
 
-Respond with ONLY a JSON object in this exact format, nothing else:
-{"score": 7, "reason": "One sentence explaining the score."}`
+  let score = 5
+  let reasons = []
 
-async function scoreInsight (insight, profile, aiChat) {
-  try {
-    const userContext = [
-      profile?.name       ? `Name: ${profile.name}`                    : null,
-      profile?.profession ? `Role: ${profile.profession}`              : null,
-      profile?.projects   ? `Current projects: ${profile.projects}`   : null,
-    ].filter(Boolean).join('\n')
+  // RULE 1: LEISURE and TRANSIT never produce insights
+  if (activityType && BLOCKED_ACTIVITIES.includes(activityType)) {
+    console.log('[Covexy] Score: 0 — activity type is ' + activityType)
+    return Promise.resolve({ score: 0, reason: 'Activity type ' + activityType + ' never generates insights' })
+  }
 
-    const systemPrompt = SCORE_SYSTEM.replace('{{USER_CONTEXT}}', userContext)
+  // RULE 2: Profile keyword contamination
+  const profileWords = extractProfileKeywords(profile)
+  if (profileWords.length > 0 && topicDomain) {
+    const topicWords = topicDomain.toLowerCase().split(/\W+/).filter(w => w.length >= 3)
+    const insightWords = fullText.split(/\W+/).filter(w => w.length >= 4)
 
-    const insightText = [
-      `INSIGHT: ${insight.insight   || ''}`,
-      `WHY NOW: ${insight.whyNow    || ''}`,
-      `ACTION:  ${insight.action    || ''}`,
-      `CATEGORY: ${insight.category || ''}`,
-    ].join('\n')
-
-    const raw = await aiChat(
-      [
-        { role: 'system', content: systemPrompt },
-        { role: 'user',   content: insightText  }
-      ],
-      15000
+    const profileOnlyMatches = insightWords.filter(w =>
+      profileWords.includes(w) && !topicWords.some(tw => w.includes(tw) || tw.includes(w))
     )
 
-    const cleaned = raw.replace(/```json|```/g, '').trim()
-    const parsed  = JSON.parse(cleaned)
-    const score   = typeof parsed.score  === 'number' ? Math.round(parsed.score) : 5
-    const reason  = typeof parsed.reason === 'string' ? parsed.reason            : ''
+    const topicMatches = insightWords.filter(w =>
+      topicWords.some(tw => w.includes(tw) || tw.includes(w))
+    )
 
-    console.log(`[Covexy] 🎯 Relevance score: ${score}/10 — ${reason}`)
-    return { score, reason }
-
-  } catch (e) {
-    console.log('[Covexy] Scoring error (defaulting to 6):', e.message)
-    return { score: 6, reason: 'Scoring unavailable' }
+    if (profileOnlyMatches.length > 2 && topicMatches.length === 0) {
+      console.log('[Covexy] Score: 0 — profile keyword contamination (' + profileOnlyMatches.slice(0, 3).join(', ') + ')')
+      return Promise.resolve({ score: 0, reason: 'Insight connects to profile keywords only, not to screen content' })
+    }
   }
+
+  // RULE 3: Screen description parroting
+  if (topicDomain) {
+    const domainWords = topicDomain.toLowerCase().split(/\W+/).filter(w => w.length >= 3)
+    const insightSentence = insight.toLowerCase()
+    const matchCount = domainWords.filter(w => insightSentence.includes(w)).length
+    if (domainWords.length > 0 && matchCount >= domainWords.length * 0.8) {
+      score -= 3
+      reasons.push('Insight mostly describes what is already on screen')
+    }
+  }
+
+  // RULE 4: Generic advice detection
+  const genericPhrases = [
+    'consider', 'you should', 'take a break', 'stay focused',
+    'keep going', 'time management', 'productivity', 'work-life balance',
+    'optimize your', 'leverage your', 'make sure to', "don't forget to",
+    "it's important to", 'you might want to'
+  ]
+  const genericCount = genericPhrases.filter(p => fullText.includes(p)).length
+  if (genericCount >= 2) {
+    score -= 3
+    reasons.push('Contains generic advice phrases')
+  }
+
+  // RULE 5: External information bonus
+  const externalSignals = [
+    'launched', 'announced', 'released', 'updated', 'changed',
+    'raised', 'acquired', 'published', 'reported', 'filed',
+    'deprecated', 'breached', 'surpassed', 'declined'
+  ]
+  const hasExternal = externalSignals.some(s => fullText.includes(s))
+  if (hasExternal) {
+    score += 3
+    reasons.push('Contains external information signal')
+  }
+
+  // RULE 6: Specificity bonus
+  const hasNumber = /\d{2,}/.test(fullText)
+  const hasProperNoun = /[A-Z][a-z]{2,}/.test(insight)
+  if (hasNumber) { score += 1; reasons.push('Contains specific data') }
+  if (hasProperNoun) { score += 1; reasons.push('References specific entity') }
+
+  // RULE 7: Time sensitivity bonus
+  const timeSensitive = ['today', 'yesterday', 'this week', 'deadline', 'expires', 'ends', 'before', 'by tomorrow']
+  const isTimeSensitive = timeSensitive.some(t => fullText.includes(t))
+  if (isTimeSensitive) {
+    score += 1
+    reasons.push('Time-sensitive content')
+  }
+
+  // RULE 8: Cross-reference bonus
+  const crossRef = ['earlier today', 'yesterday you', 'last week', 'this morning', 'on monday', 'on tuesday', 'on wednesday', 'on thursday', 'on friday', 'days ago', 'previously']
+  const hasCrossRef = crossRef.some(c => fullText.includes(c))
+  if (hasCrossRef) {
+    score += 2
+    reasons.push('Connects across different time contexts')
+  }
+
+  // RULE 9: Work relevance gate
+  if (isWorkRelated === false) {
+    score -= 2
+    reasons.push('Screen activity is not work-related')
+  }
+
+  score = Math.max(0, Math.min(10, score))
+
+  const reason = reasons.length > 0 ? reasons.join('; ') : 'Passed all rules with neutral score'
+  console.log('[Covexy] Score: ' + score + '/10 — ' + reason)
+
+  return Promise.resolve({ score, reason })
 }
 
 function shouldShowInsight (score) {

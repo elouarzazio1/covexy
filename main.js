@@ -229,19 +229,31 @@ function loadTodayActivity () {
   todayActivity = safeRead(actFile(), [])
 }
 
-function addActivity (description, triggered = false) {
-  todayActivity.push({ timestamp: new Date().toISOString(), description, triggered })
+function addActivity (description, triggered = false, metadata = null) {
+  const entry = {
+    timestamp: new Date().toISOString(),
+    description,
+    triggered,
+    activityType: metadata?.activityType || null,
+    appName: metadata?.appName || null,
+    topicDomain: metadata?.topicDomain || null,
+    isWorkRelated: metadata?.isWorkRelated ?? null,
+    confidence: metadata?.confidence || null
+  }
+  todayActivity.push(entry)
   safeWrite(actFile(), todayActivity)
-
-  // Observer: also push to in-memory log for the Analyst to read
-  observerLog.push({ timestamp: new Date().toISOString(), description })
+  observerLog.push(entry)
   if (observerLog.length > OBSERVER_MAXLOG) observerLog = observerLog.slice(-OBSERVER_MAXLOG)
 }
 
 function todayActivityText () {
   if (!todayActivity.length) return 'No screen activity recorded yet today.'
   return todayActivity.slice(-20)
-    .map(a => `[${new Date(a.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}] ${a.description}`)
+    .map(a => {
+      const time = new Date(a.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      const tag = a.activityType ? ` [${a.activityType}]` : ''
+      return `[${time}]${tag} ${a.description}`
+    })
     .join('\n')
 }
 
@@ -634,7 +646,7 @@ async function analyzeScreen () {
         role: 'user',
         content: [
           { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64}` } },
-          { type: 'text', text: liveContextPrefix + 'Look at this screenshot. Your ONLY job is to log what the user is doing in one short sentence. Do NOT generate an insight. Do NOT give advice. Just describe the activity so it can be logged. If the screen is blank, a screensaver, or a browser homepage respond with SKIP.' }
+          { type: 'text', text: liveContextPrefix + 'Look at this screenshot. Classify what the user is doing. Respond with ONLY a valid JSON object. No markdown. No backticks. No explanation.\n\n{"description": "One sentence describing what the user is doing", "activityType": "DEEP_WORK or RESEARCH or COMMUNICATION or ADMIN or LEISURE or TRANSIT", "appName": "Name of the main app visible", "topicDomain": "Subject matter in 1-3 words", "isWorkRelated": true or false, "confidence": 0.0 to 1.0}\n\nActivity types:\nDEEP_WORK = coding, writing, designing, building, editing documents\nRESEARCH = reading articles, watching educational content, exploring tools\nCOMMUNICATION = email, messages, calls, video meetings\nADMIN = settings, file management, forms, system tasks\nLEISURE = sports, entertainment, social media for fun, games, watching matches\nTRANSIT = lock screen, screensaver, blank desktop, empty browser tab\n\nIf the screen is blank, a screensaver, lock screen, or empty browser homepage, respond with exactly: SKIP' }
         ]
       }
     ], 60000)
@@ -648,10 +660,31 @@ async function analyzeScreen () {
       return
     }
 
-    // Log what the user is doing and return — no insight generation here
-    const activityDescription = raw.replace(/^SKIP:?\s*/i, '').trim()
-    console.log('[Covexy] 👁  Observer logged:', activityDescription.slice(0, 80))
-    addActivity(activityDescription, false)
+    // Parse structured JSON from Observer
+    let activityData = null
+    try {
+      const cleaned = raw.replace(/```json|```/g, '').trim()
+      activityData = JSON.parse(cleaned)
+    } catch (e) {
+      console.log('[Covexy] 👁  Observer returned prose instead of JSON, wrapping as ADMIN')
+      activityData = {
+        description: raw.trim().slice(0, 200),
+        activityType: 'ADMIN',
+        appName: 'unknown',
+        topicDomain: 'unknown',
+        isWorkRelated: true,
+        confidence: 0.5
+      }
+    }
+
+    // Validate activityType
+    const VALID_TYPES = ['DEEP_WORK', 'RESEARCH', 'COMMUNICATION', 'ADMIN', 'LEISURE', 'TRANSIT']
+    if (!VALID_TYPES.includes(activityData.activityType)) {
+      activityData.activityType = 'ADMIN'
+    }
+
+    console.log(`[Covexy] 👁  Observer: [${activityData.activityType}] ${activityData.description?.slice(0, 80)}`)
+    addActivity(activityData.description || 'Screen observed', false, activityData)
     isProcessing = false
     return
 
