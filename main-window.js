@@ -8,32 +8,24 @@ let currentSettings = {}
 const expandedCards = new Set()
 
 // ── Category config ───────────────────────────────────────────────────────────
-function catFor (item) {
-  const raw = (item.category || item.tags?.[0] || '').toLowerCase().trim()
+function categoryMeta (item) {
+  const raw = (item.category || item.templateType || item.tags?.[0] || '').toLowerCase().trim()
   const map = {
-    work:        { icon: '◆', cls: 'cat-work' },
-    research:    { icon: '◎', cls: 'cat-research' },
-    opportunity: { icon: '◈', cls: 'cat-opportunity' },
-    alert:       { icon: '△', cls: 'cat-alert' },
-    pattern:     { icon: '◇', cls: 'cat-pattern' },
-    briefing:    { icon: '☀', cls: 'cat-briefing' },
-    summary:     { icon: '▣', cls: 'cat-summary' },
-    draft:       { icon: '✎', cls: 'cat-draft' },
-    reminder:    { icon: '⏎', cls: 'cat-reminder' },
-    connection:  { icon: '⟷', cls: 'cat-connection' },
-    idea:        { icon: '◈', cls: 'cat-idea' },
-    life:        { icon: '●', cls: 'cat-life' },
-    travel:      { icon: '◎', cls: 'cat-travel' },
-    health:      { icon: '●', cls: 'cat-health' },
-    social:      { icon: '◈', cls: 'cat-social' },
-    creative:    { icon: '◇', cls: 'cat-creative' },
-    finance:     { icon: '◎', cls: 'cat-finance' },
-    email:       { icon: '◎', cls: 'cat-email' },
-    task:        { icon: '◆', cls: 'cat-task' },
-    focus:       { icon: '◎', cls: 'cat-focus' },
-    writing:     { icon: '●', cls: 'cat-writing' },
+    work:        { label: 'WORK',        color: 'var(--c-work)' },
+    research:    { label: 'RESEARCH',    color: 'var(--c-research)' },
+    opportunity: { label: 'OPPORTUNITY', color: 'var(--c-opportunity, #10B981)' },
+    alert:       { label: 'ALERT',       color: 'var(--c-alert)' },
+    pattern:     { label: 'PATTERN',     color: 'var(--c-pattern, #A855F7)' },
+    briefing:    { label: 'BRIEFING',    color: 'var(--c-briefing, #3B82F6)' },
+    summary:     { label: 'SUMMARY',     color: 'var(--c-summary, #6B7280)' },
+    draft:       { label: 'DRAFT',       color: 'var(--c-draft, #F59E0B)' },
+    reminder:    { label: 'REMINDER',    color: 'var(--c-reminder, #EF4444)' },
+    connection:  { label: 'CONNECTION',  color: 'var(--c-connection, #06B6D4)' },
+    morning_briefing: { label: 'MORNING BRIEFING', color: 'var(--c-briefing, #3B82F6)' },
+    idea:        { label: 'IDEA',        color: 'var(--c-idea)' },
+    life:        { label: 'LIFE',        color: 'var(--c-life)' },
   }
-  return map[raw] || { icon: '◆', cls: 'cat-work' }
+  return map[raw] || { label: raw.toUpperCase() || 'INSIGHT', color: 'var(--c-work)' }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -71,6 +63,22 @@ function switchTab (tab) {
 }
 
 // ── Render insights ───────────────────────────────────────────────────────────
+function dismissInsight (cardId) {
+  const item = insights.find(i => (i.timestamp || i.id) === cardId)
+  if (item) {
+    // Log as negative signal
+    window.electronAPI.rateInsight(item.timestamp, -1)
+  }
+  // Remove from UI
+  const card = document.querySelector(`.insight-card[data-card-id="${cardId}"]`)
+  if (card) {
+    card.style.transition = 'opacity 0.2s ease, transform 0.2s ease'
+    card.style.opacity = '0'
+    card.style.transform = 'translateX(20px)'
+    setTimeout(() => card.remove(), 200)
+  }
+}
+
 function copyInsight (cardId) {
   const item = insights.find(i => (i.timestamp || i.id) === cardId)
   if (!item) return
@@ -151,10 +159,9 @@ function renderInsights () {
 
   list.innerHTML = today.map(item => {
     const cardId = 'c' + String(item.timestamp).replace(/[^a-zA-Z0-9]/g, '')
-    const c      = catFor(item)
 
     const actionHtml = item.action
-      ? `<div class="insight-action-line">→ ${esc(item.action)}</div>`
+      ? `<div class="insight-action-line">\u2192 ${esc(item.action)}</div>`
       : ''
 
     const whyNowHtml = item.whyNow
@@ -173,19 +180,7 @@ function renderInsights () {
       sourcesHtml = `<div class="insight-no-sources">No sources found</div>`
     }
 
-    const upClass   = item.rating === 1  ? 'active' : (item.rating === -1 ? 'faded' : '')
-    const downClass = item.rating === -1 ? 'active' : (item.rating === 1  ? 'faded' : '')
-
-    const watchlistLabelHtml = item.watchlistTopic
-      ? `<div style="font-size:10px;color:#777777;font-weight:500;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">${esc(item.watchlistTopic)}</div>`
-      : ''
-
-    const scoreVal = item.score || 0
-    const scoreBadge = scoreVal >= 8
-      ? `<span class="insight-score-badge insight-score-high">${scoreVal}/10</span>`
-      : scoreVal >= 5
-        ? `<span class="insight-score-badge insight-score-medium">${scoreVal}/10</span>`
-        : ''
+    const c = categoryMeta(item)
 
     const preparedTag = (item.source === 'preparer' || item.templateType)
       ? `<div class="insight-prepared-tag">${esc(item.templateType || 'PREPARED')}</div>`
@@ -193,30 +188,22 @@ function renderInsights () {
 
     return `
       <div class="insight-card" data-card-id="${cardId}" onclick="toggleCard('${cardId}')">
-        <div class="insight-card-header">
-          <div class="insight-icon ${c.cls}">${c.icon}</div>
-          <div style="flex:1;min-width:0;">
-            ${watchlistLabelHtml}
-            ${preparedTag}
-            <div class="insight-text">${esc(item.content.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1'))}${scoreBadge}</div>
-            ${actionHtml}
-            <div class="insight-time">${fmtTime(item.timestamp)}</div>
-          </div>
-          <div class="insight-chevron">▾</div>
-        </div>
-        <div class="insight-feedback" onclick="event.stopPropagation()">
-          <button class="fb-btn ${upClass}"   onclick="rateInsight('${cardId}',  1, event)" title="Useful">↑</button>
-          <button class="fb-btn ${downClass}" onclick="rateInsight('${cardId}', -1, event)" title="Not useful">↓</button>
-        </div>
+        <button class="insight-dismiss" onclick="event.stopPropagation();dismissInsight('${cardId}')" title="Dismiss">\u00d7</button>
+        <div class="insight-category-label" style="color:${c.color}">${c.label}</div>
+        ${preparedTag}
+        <div class="insight-text">${esc(item.content.replace(/\*\*(.*?)\*\*/g, '$1').replace(/\*(.*?)\*/g, '$1'))}</div>
+        ${actionHtml}
+        <div class="insight-time">${fmtTime(item.timestamp)}</div>
+        <div class="insight-chevron">\u25be</div>
         <div class="insight-expanded-body">
           ${whyNowHtml}
           <div class="insight-actions-row">
-            <button class="insight-action-btn" onclick="event.stopPropagation();copyInsight('${cardId}')" title="Copy insight">Copy</button>
+            <button class="insight-action-btn" onclick="event.stopPropagation();copyInsight('${cardId}')" title="Copy">Copy</button>
             <button class="insight-action-btn" onclick="event.stopPropagation();openInChat('${cardId}')" title="Open in Chat">Open in Chat</button>
           </div>
           <hr class="insight-divider">
           ${sourcesHtml}
-          <button class="insight-show-less" onclick="event.stopPropagation();toggleCard('${cardId}')">Show less ▴</button>
+          <button class="insight-show-less" onclick="event.stopPropagation();toggleCard('${cardId}')">Show less \u25b4</button>
         </div>
       </div>`
   }).join('')
