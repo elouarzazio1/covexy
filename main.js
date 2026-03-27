@@ -10,6 +10,7 @@ const fs     = require('fs')
 const zlib   = require('zlib')
 const screenshot = require('screenshot-desktop') // fallback capturer
 const { scoreInsight, shouldShowInsight } = require('./intelligence')
+const workGraph = require('./work-graph')
 
 // ─── Crash protection ─────────────────────────────────────────────────────────
 const logFile = path.join(app.getPath('userData'), 'covexy-error.log')
@@ -244,6 +245,7 @@ function addActivity (description, triggered = false, metadata = null) {
   safeWrite(actFile(), todayActivity)
   observerLog.push(entry)
   if (observerLog.length > OBSERVER_MAXLOG) observerLog = observerLog.slice(-OBSERVER_MAXLOG)
+  if (metadata) workGraph.processActivity(entry)
 }
 
 function todayActivityText () {
@@ -1485,6 +1487,9 @@ ipcMain.handle('get-chat-history',  () => todayChatHistory)
 ipcMain.handle('get-settings',        () => settings)
 ipcMain.handle('get-profile',         () => profile)
 ipcMain.handle('get-version',         () => APP_VERSION)
+ipcMain.handle('get-work-graph', () => workGraph.getWorkGraph())
+ipcMain.handle('get-analyst-context', () => workGraph.getAnalystContext())
+ipcMain.handle('get-today-stats', () => workGraph.getTodayStats())
 ipcMain.handle('get-api-key-status',  () => ({ hasKey: !!apiKey }))
 
 ipcMain.handle('send-chat', async (_, msg) => {
@@ -1571,7 +1576,11 @@ app.whenReady().then(() => {
   loadProfile()
   loadMemory()
   loadTodayActivity()
+  workGraph.buildFromTodayActivity(todayActivity)
   loadTodayChat()
+  // Infer current priority project from last 3 days of activity
+  workGraph.inferPriority(DATA_DIR, actFile)
+  console.log('[Covexy] Work Graph priority:', workGraph.getAnalystContext().currentPriority)
 
   // Whisper availability check
   try {
